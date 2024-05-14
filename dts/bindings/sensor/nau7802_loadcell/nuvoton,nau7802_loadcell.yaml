@@ -1,0 +1,62 @@
+# Copyright (c) 2024, Tin Chiang
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  Nuvoton NAU7802 24-Bit Dual-Channel ADC For Bridge Sensors on I2C bus.
+  
+  Example definition in devicetree:
+
+    nau7802 {
+        compatible = "nuvoton,nau7802";
+        drdy-gpios = <&gpio0 0 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+    };
+  
+
+compatible: "nuvoton,nau7802"
+
+include: [sensor-device.yaml, i2c-device.yaml]
+
+properties:
+  drdy-gpios:
+    type: phandle-array
+    description: DRDY pin
+
+      This pin defaults to active high when produced by the sensor.
+      The property value should ensure the flags properly describe
+      the signal that is presented to the driver.
+
+      The interrupt pin of NAU7802 is default active high.
+  conversions-per-second:
+    
+    type: int
+    default: 1
+    # Note: the driver relies on the ordering of this enum,
+    # so change it with care.
+    enum: [0, 1, 2, 3, 4, 5]
+    description: |
+      Number of force readings performed by the NAU7802 per second.
+      10 conversions per second is the power-on reset configuration.
+      - 0 # 10SPS
+      - 1 # 20SPS
+      - 2 # 40SPS
+      - 3 # 80SPS
+      - 4 # 320SPS
+  gain:
+    type: int
+    default: 1    
+    enum: [0, 1, 2, 3, 4, 5, 6, 7]
+    description: |
+      ADC gain factor. The default value is x1 at power on.
+      - 1 # gain: 1
+      - 2 # 2
+      - 3 # 4
+      - 4 # 8
+      - 16
+      - 32
+      - 64
+      - 128
+  calibration-factor:
+    type: float
+    default: 1.0
+    discription: |
+      The sensor model of loadcell is 'y = ax + b'. The calibration factor is the 'a', and should be measured before-hand.

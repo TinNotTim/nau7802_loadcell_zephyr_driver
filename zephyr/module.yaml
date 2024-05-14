@@ -1,0 +1,6 @@
+name: NAU7802_LOADCELL
+build:
+  cmake: .
+  kconfig: Kconfig
+  settings:
+    dts_root: .
