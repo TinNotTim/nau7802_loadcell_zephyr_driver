@@ -6,20 +6,21 @@ description: |
   
   Example definition in devicetree:
 
-    nau7802 {
-        compatible = "nuvoton,nau7802";
+    nau7802_loadcell {
+        compatible = "nuvoton,nau7802_loadcell";
         drdy-gpios = <&gpio0 0 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
     };
   
 
-compatible: "nuvoton,nau7802"
+compatible: "nuvoton,nau7802_loadcell"
 
 include: [sensor-device.yaml, i2c-device.yaml]
 
 properties:
   drdy-gpios:
     type: phandle-array
-    description: DRDY pin
+    description: |
+      DRDY pin
 
       This pin defaults to active high when produced by the sensor.
       The property value should ensure the flags properly describe
@@ -29,34 +30,34 @@ properties:
   conversions-per-second:
     
     type: int
-    default: 1
+    default: 0
     # Note: the driver relies on the ordering of this enum,
-    # so change it with care.
-    enum: [0, 1, 2, 3, 4, 5]
+    # so change it with care.    
     description: |
       Number of force readings performed by the NAU7802 per second.
       10 conversions per second is the power-on reset configuration.
-      - 0 # 10SPS
-      - 1 # 20SPS
-      - 2 # 40SPS
-      - 3 # 80SPS
-      - 4 # 320SPS
+    enum: 
+      - 0 # 10 SPS
+      - 1 # 20 SPS
+      - 2 # 40 SPS
+      - 3 # 80 SPS
+      - 7 # 320 SPS
   gain:
     type: int
     default: 1    
-    enum: [0, 1, 2, 3, 4, 5, 6, 7]
     description: |
       ADC gain factor. The default value is x1 at power on.
-      - 1 # gain: 1
-      - 2 # 2
-      - 3 # 4
-      - 4 # 8
-      - 16
-      - 32
-      - 64
-      - 128
-  calibration-factor:
-    type: float
-    default: 1.0
-    discription: |
-      The sensor model of loadcell is 'y = ax + b'. The calibration factor is the 'a', and should be measured before-hand.
+    enum:
+      - 0 # gain: 1
+      - 1 # gain: 2
+      - 2 # gain: 4
+      - 3 # gain: 8
+      - 4 # gain: 16
+      - 5 # gain: 32
+      - 6 # gain: 64
+      - 7 # gain: 128
+  # calibration-factor:
+  #   type: string
+  #   default: "1.0"
+  #   description: |
+  #     The sensor model of loadcell is 'y = ax + b'. The calibration factor is the 'a', and should be measured before-hand.

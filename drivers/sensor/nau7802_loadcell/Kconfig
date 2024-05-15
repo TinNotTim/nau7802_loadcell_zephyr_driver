@@ -4,7 +4,7 @@
 config NAU7802_LOADCELL
 	bool "NAU7802 24-Bit Dual-Channel ADC with Loadcell"
 	default y
-	depends on DT_HAS_ZEPHYR_NAU7802_LOADCELL_ENABLED
+	# depends on DT_HAS_ZEPHYR_NAU7802_LOADCELL_ENABLED
     select I2C
 	help
 	  Enable driver for NAU7802 24-Bit Dual-Channel ADC For loadcell.
