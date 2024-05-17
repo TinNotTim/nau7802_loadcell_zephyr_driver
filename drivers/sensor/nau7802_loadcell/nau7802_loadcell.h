@@ -116,16 +116,46 @@ enum sensor_channel_nuvoton_nau7802_loadcell {
 /* Define data (RAM) and configuration (ROM) structures: */
 struct nau7802_loadcell_data {
     /* per-device values to store in RAM */
-    int32_t zero_offset;
-    float calibration_factor;
+    float32_t zero_offset;
+    float32_t calibration_factor;
     int32_t sample;
+
+    #ifdef CONFIG_NAU7802_LOADCELL_TRIGGER
+        struct gpio_callback gpio_cb;
+        sensor_trigger_handler_t handler_drdy;
+        const struct sensor_trigger *trig_drdy;
+
+    #if defined(CONFIG_NAU7802_LOADCELL_TRIGGER_OWN_THREAD)
+        K_KERNEL_STACK_MEMBER(thread_stack, CONFIG_NAU7802_LOADCELL_THREAD_STACK_SIZE);
+        struct k_thread thread;
+        struct k_sem gpio_sem;
+    #elif defined(CONFIG_NAU7802_LOADCELL_TRIGGER_GLOBAL_THREAD)
+        struct k_work work;
+    #endif /* CONFIG_NAU7802_LOADCELL_TRIGGER_MODE */
+    #endif /* CONFIG_NAU7802_LOADCELL_TRIGGER */
+
+    #if defined(CONFIG_NAU7802_LOADCELL_TRIGGER_GLOBAL_THREAD) || \
+	defined(CONFIG_NAU7802_LOADCELL_TRIGGER_DIRECT)
+	const struct device *dev;
+    #endif
 };
 struct nau7802_loadcell_config {
     /* other configuration to store in ROM */
     const struct i2c_dt_spec bus;
 	uint16_t conversions_per_second;
 	uint8_t gain;
-    
+
+    #ifdef CONFIG_NAU7802_LOADCELL_TRIGGER
+        const struct gpio_dt_spec drdy_gpios;
+    #endif /* CONFIG_NAU7802_LOADCELL_TRIGGER */
 };
+
+#ifdef CONFIG_NAU7802_LOADCELL_TRIGGER
+int nau7802_loadcell_trigger_set(const struct device *dev,
+			const struct sensor_trigger *trig,
+			sensor_trigger_handler_t handler);
+
+int nau7802_loadcell_init_interrupt(const struct device *dev);
+#endif
 
 #endif

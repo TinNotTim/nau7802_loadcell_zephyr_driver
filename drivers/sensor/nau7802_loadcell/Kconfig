@@ -10,3 +10,42 @@ config NAU7802_LOADCELL
 	  Enable driver for NAU7802 24-Bit Dual-Channel ADC For loadcell.
 	  Noted: NAU7802 can be used with multiple bridge sensor, but this driver is specifically designed for loadcell
 
+choice NAU7802_LOADCELL_TRIGGER_MODE
+	prompt "Trigger mode"
+	default NAU7802_LOADCELL_TRIGGER_GLOBAL_THREAD
+	help
+	  Specify the type of triggering to be used by the driver.
+
+config NAU7802_LOADCELL_TRIGGER_NONE
+	bool "No trigger"
+
+config NAU7802_LOADCELL_TRIGGER_GLOBAL_THREAD
+	bool "Use global thread"
+	select NAU7802_LOADCELL_TRIGGER
+
+config NAU7802_LOADCELL_TRIGGER_OWN_THREAD
+	bool "Use own thread"
+	select NAU7802_LOADCELL_TRIGGER
+
+config NAU7802_LOADCELL_TRIGGER_DIRECT
+	bool "Use IRQ handler"
+	select NAU7802_LOADCELL_TRIGGER
+endchoice
+
+config NAU7802_LOADCELL_TRIGGER
+	bool
+
+config NAU7802_LOADCELL_THREAD_PRIORITY
+	int "Own thread priority"
+	depends on NAU7802_LOADCELL_TRIGGER_OWN_THREAD
+	default 10
+	help
+	  Priority of the thread used by the driver to handle interrupts.
+
+config NAU7802_LOADCELL_THREAD_STACK_SIZE
+	int "Own thread stack size"
+	depends on NAU7802_LOADCELL_TRIGGER_OWN_THREAD
+	default 1024
+	help
+	  Stack size of thread used by the driver to handle interrupts.
+
