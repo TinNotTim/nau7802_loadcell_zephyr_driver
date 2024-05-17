@@ -145,9 +145,9 @@ struct nau7802_loadcell_config {
 	uint16_t conversions_per_second;
 	uint8_t gain;
 
-    #ifdef CONFIG_NAU7802_LOADCELL_TRIGGER
-        const struct gpio_dt_spec drdy_gpios;
-    #endif /* CONFIG_NAU7802_LOADCELL_TRIGGER */
+#ifdef CONFIG_NAU7802_LOADCELL_TRIGGER
+    const struct gpio_dt_spec drdy_gpios;
+#endif /* CONFIG_NAU7802_LOADCELL_TRIGGER */
 };
 
 #ifdef CONFIG_NAU7802_LOADCELL_TRIGGER
