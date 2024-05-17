@@ -53,92 +53,107 @@ Define NAU7802 in your board `.overlay` like this example:
         compatible = "nuvoton,nau7802_loadcell";
         reg = <0x2A>;
         drdy-gpios = <&gpiod 1 GPIO_ACTIVE_HIGH>;
-        conversions-per-second = <7>; // 320 SPS
-        gain = <7>; // 128
+        conversions-per-second = <320>; //SPS
+        gain = <128>;
     };
 };
 ```
 
 ### Driver usage
 ```c
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/devicetree.h>
+#include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/sensor.h>
+#include <zephyr/drivers/i2c.h>
 #include <zephyr/logging/log.h>
-#include <zephyr/sys/util.h>
-#include <zephyr/types.h>
+/* this is for getting the SENSOR_CHAN_FORCE*/
+#include "../../../modules/nau7802_loadcell/drivers/sensor/nau7802_loadcell/nau7802_loadcell.h"
 
-#include <sensor/hx711/hx711.h>
-#include <stddef.h>
+/* Declare the membership in registered logging module*/
+LOG_MODULE_REGISTER(LOADCELL_TEST, CONFIG_SENSOR_LOG_LEVEL);
 
-LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
-
-const struct device *hx711_dev;
-
-void set_rate(enum hx711_rate rate)
+static int process_sensor_value(const struct device *dev)
 {
-	static struct sensor_value rate_val;
-
-	rate_val.val1 = rate;
-	sensor_attr_set(hx711_dev,
-			HX711_SENSOR_CHAN_WEIGHT,
-			SENSOR_ATTR_SAMPLING_FREQUENCY,
-			&rate_val);
-}
-
-void measure(void)
-{
-	static struct sensor_value weight;
+	struct sensor_value force;
 	int ret;
 
-	ret = sensor_sample_fetch(hx711_dev);
+	ret = sensor_sample_fetch(dev);
 	if (ret != 0) {
-		LOG_ERR("Cannot take measurement: %d", ret);
-	} else {
-		sensor_channel_get(hx711_dev, HX711_SENSOR_CHAN_WEIGHT, &weight);
-		LOG_INF("Weight: %d.%06d grams", weight.val1, weight.val2);
+		LOG_ERR("ret: %d, Sensor sample update error", ret);
+		return ret;
 	}
+
+	ret = sensor_channel_get(dev, SENSOR_CHAN_FORCE, &force);
+	if (ret != 0) {
+		LOG_ERR("ret: %d, Cannot read NAU7802 force channelr", ret);
+		return ret;
+	}
+
+	LOG_INF("Force:%f", sensor_value_to_double(&force));
+	return 0;
 }
 
-void main(void)
+static void nau7802_loadcell_handler(const struct device *dev,
+			   const struct sensor_trigger *trig)
 {
-	int calibration_weight = 100; // grams
-	hx711_dev = DEVICE_DT_GET_ANY(avia_hx711);
-	__ASSERT(hx711_dev == NULL, "Failed to get device binding");
+	process_sensor_value(dev);
+}
 
-	LOG_INF("Device is %p, name is %s", hx711_dev, hx711_dev->name);
-	LOG_INF("Calculating offset...");
-	avia_hx711_tare(hx711_dev, 5);
+void test_loadcell(void)
+{
+    /* Get the device pointer to nau7802 sensor*/
+	const struct device *const nau7802 = DEVICE_DT_GET_ONE(nuvoton_nau7802_loadcell);
 
-	LOG_INF("Waiting for known weight of %d grams...",
-		calibration_weight);
-
-	for (int i = 5; i >= 0; i--) {
-		LOG_INF(" %d..", i);
-		k_msleep(1000);
+	if (!device_is_ready(nau7802)) {
+		LOG_ERR("sensor: device not ready.");
+		return;
 	}
 
-	LOG_INF("Calculating slope...");
-	avia_hx711_calibrate(hx711_dev, calibration_weight, 5);
+	/* set the offset and calibration factor*/
+	float32_t offset = 2.505000511475965652e+01;
+	float32_t calibFactor = 6.527824679590503775e-06;
+	const struct sensor_value offset_attri;
+	const struct sensor_value calib_attri;
 
-	while (true) {
-		k_msleep(1000);
-		LOG_INF("== Test measure ==");
-		LOG_INF("= Setting sampling rate to 10Hz.");
-		set_rate(HX711_RATE_10HZ);
-		measure();
+	/* Currently don't have a good way to pass floating point value to the sensor driver*/
+	/* Use the memcpy to do bit-to-bit copy, from float32_t to int32_t*/
+	memcpy(&offset_attri.val1, &offset, sizeof(offset));
+	memcpy(&calib_attri.val1, &calibFactor, sizeof(calibFactor));
 
-		k_msleep(1000);
-		LOG_INF("= Setting sampling rate to 80Hz.");
-		set_rate(HX711_RATE_80HZ);
-		measure();
+	if(sensor_attr_set(nau7802, SENSOR_CHAN_FORCE, SENSOR_ATTR_OFFSET, &offset_attri) != 0){
+		LOG_ERR("Cannot configure the offset");
+		return;
 	}
+
+	if(sensor_attr_set(nau7802, SENSOR_CHAN_FORCE, SENSOR_ATTR_CALIBRATION, &calib_attri) != 0){
+		LOG_ERR("Cannot configure the offset");
+		return;
+	}
+
+	/* Set the tragger type and handler function if needed*/
+	if (IS_ENABLED(CONFIG_NAU7802_LOADCELL_TRIGGER)) {
+		struct sensor_trigger trig = {
+			.type = SENSOR_TRIG_DATA_READY,
+			.chan = SENSOR_CHAN_ALL,
+		};
+		if (sensor_trigger_set(nau7802, &trig, nau7802_loadcell_handler) < 0) {
+			LOG_ERR("Cannot configure trigger");
+			return;
+		}
+	}
+	
+	while (!IS_ENABLED(CONFIG_NAU7802_LOADCELL_TRIGGER)) {
+		process_sensor_value(nau7802);
+		k_sleep(K_MSEC(2000));
+	}
+	k_sleep(K_FOREVER);
+
+
 }
 ```
 Relevant `prj.conf`:
 ```ini
 CONFIG_SENSOR=y
-CONFIG_HX711=y
+CONFIG_NAU7802_LOADCELL=y
+CONFIG_NAU7802_LOADCELL_TRIGGER_GLOABL_THREAD=y
 CONFIG_LOG=y
 ```
