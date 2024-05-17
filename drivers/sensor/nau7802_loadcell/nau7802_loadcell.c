@@ -331,7 +331,7 @@ static int nau7802_loadcell_sample_fetch(const struct device *dev,
 	const struct nau7802_loadcell_config *config = dev->config;
 	uint8_t out[3];
 
-	if ((enum sensor_channel_nuvoton_nau7802_loadcell)chan == SENSOR_CHAN_FORCE) {
+	if (chan == SENSOR_CHAN_ALL) {
 		if (i2c_burst_read_dt(&config->bus, NAU7802_ADCO_B2, out, 3) < 0) {
             LOG_DBG("Failed to read sample");
             return -EIO;
@@ -486,14 +486,22 @@ static int nau7802_loadcell_init(const struct device *dev)
 	return 0;
 }
 
+/* Macro function to selectively include the drdy gpio pin*/
+#if defined(CONFIG_NAU7802_LOADCELL_TRIGGER)
+#define NAU7802_LOADCELL_INT_CFG(inst) \
+	.drdy_gpios = GPIO_DT_SPEC_INST_GET(inst, drdy_gpios),
+#else
+#define NAU7802_LOADCELL_INT_CFG(inst)
+#endif
+
 /* Use the Instance-based APIs*/
 #define CREATE_NAU7802_LOADCELL_INST(inst)								  \
 	static struct nau7802_loadcell_data nau7802_loadcell_data_##inst;				  \
 	static const struct nau7802_loadcell_config nau7802_loadcell_config_##inst = {			  \
+		NAU7802_LOADCELL_INT_CFG(inst)		\
 		.bus = I2C_DT_SPEC_INST_GET(inst),					  \
 		.conversions_per_second = DT_INST_ENUM_IDX(inst, conversions_per_second), \
-		.gain = DT_INST_ENUM_IDX(inst, gain),			  \
-		.drdy_gpios = GPIO_DT_SPEC_INST_GET(inst, drdy_gpios)			\
+		.gain = DT_INST_ENUM_IDX(inst, gain)			\
 	};										  \
 	SENSOR_DEVICE_DT_INST_DEFINE(	\
 		inst, nau7802_loadcell_init, \
