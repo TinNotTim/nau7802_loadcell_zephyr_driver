@@ -203,16 +203,22 @@ static int nau7802_setLDO(const struct nau7802_loadcell_config *config, NAU7802_
 /**************************************************************************/
 /*!
     @brief  The desired ADC gain setter
-    @param  gain Desired gain: NAU7802_GAIN_1, NAU7802_GAIN_2, NAU7802_GAIN_4,
-    NAU7802_GAIN_8, NAU7802_GAIN_16, NAU7802_GAIN_32, NAU7802_GAIN_64,
-    or NAU7802_GAIN_128
+    @param  gain_idx Index of the desired gain in dts bindings: 
+	NAU7802_GAIN_1=0, 
+	NAU7802_GAIN_2=1, 
+	NAU7802_GAIN_4=2, 
+	NAU7802_GAIN_8=3, 
+	NAU7802_GAIN_16=4, 
+	NAU7802_GAIN_32=5, 
+	NAU7802_GAIN_64=6, 
+	NAU7802_GAIN_128=7
     @returns 0 if seccess
 */
 /**************************************************************************/
 static int nau7802_setGain(const struct nau7802_loadcell_config *config)
 {
 	int ret;
-	NAU7802_Gain gain = config->gain;
+	NAU7802_Gain gain = GainMap[config->gain_idx];
 	/* Write the PGA gain to CTRL1 register*/
 	ret = i2c_reg_update_byte_dt(&config->bus, 
 								NAU7802_CTRL1, 
@@ -229,15 +235,19 @@ static int nau7802_setGain(const struct nau7802_loadcell_config *config)
 /**************************************************************************/
 /*!
     @brief  The desired conversion rate setter
-    @param rate The desired rate: NAU7802_RATE_10SPS, NAU7802_RATE_20SPS,
-    NAU7802_RATE_40SPS, NAU7802_RATE_80SPS, or NAU7802_RATE_320SPS
+    @param conversions_per_second_idx The index of desired rate in dts bindings: 
+	NAU7802_RATE_10SPS=0, 
+	NAU7802_RATE_20SPS=1,
+	NAU7802_RATE_40SPS=2, 
+	NAU7802_RATE_80SPS=3, 
+	NAU7802_RATE_320SPS=4
     @returns 0 if seccess
 */
 /**************************************************************************/
 static int nau7802_setRate(const struct nau7802_loadcell_config *config)
 {
 	int ret;
-	NAU7802_SampleRate rate = config->conversions_per_second;
+	NAU7802_SampleRate rate = sampleRateMap[config->conversions_per_second_idx];
 	/* Write the sample rate to CTRL2 register*/
 	ret = i2c_reg_update_byte_dt(&config->bus, 
 								NAU7802_CTRL2, 
@@ -500,8 +510,8 @@ static int nau7802_loadcell_init(const struct device *dev)
 	static const struct nau7802_loadcell_config nau7802_loadcell_config_##inst = {			  \
 		NAU7802_LOADCELL_INT_CFG(inst)		\
 		.bus = I2C_DT_SPEC_INST_GET(inst),					  \
-		.conversions_per_second = DT_INST_ENUM_IDX(inst, conversions_per_second), \
-		.gain = DT_INST_ENUM_IDX(inst, gain)			\
+		.conversions_per_second_idx = DT_INST_ENUM_IDX(inst, conversions_per_second), \
+		.gain_idx = DT_INST_ENUM_IDX(inst, gain)			\
 	};										  \
 	SENSOR_DEVICE_DT_INST_DEFINE(	\
 		inst, nau7802_loadcell_init, \

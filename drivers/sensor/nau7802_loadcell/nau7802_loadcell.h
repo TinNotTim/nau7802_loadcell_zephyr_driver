@@ -90,6 +90,17 @@ typedef enum _gains {
     NAU7802_GAIN_64,
     NAU7802_GAIN_128,
 } NAU7802_Gain;
+/* Array to map index to the enum values*/
+static const NAU7802_Gain GainMap[] = {
+    NAU7802_GAIN_1,  // Index 0
+    NAU7802_GAIN_2,  // Index 1
+    NAU7802_GAIN_4,  // Index 2
+    NAU7802_GAIN_8,  // Index 3
+    NAU7802_GAIN_16, // Index 4
+    NAU7802_GAIN_32, // Index 5
+    NAU7802_GAIN_64, // Index 6
+    NAU7802_GAIN_128, // Index 7
+};
 
 /*! The possible sample rates */
 typedef enum _sample_rates {
@@ -99,6 +110,15 @@ typedef enum _sample_rates {
     NAU7802_RATE_80SPS = 3,
     NAU7802_RATE_320SPS = 7,
 } NAU7802_SampleRate;
+
+/* Array to map index to the enum values*/
+static const NAU7802_SampleRate sampleRateMap[] = {
+    NAU7802_RATE_10SPS,  // Index 0
+    NAU7802_RATE_20SPS,  // Index 1
+    NAU7802_RATE_40SPS,  // Index 2
+    NAU7802_RATE_80SPS,  // Index 3
+    NAU7802_RATE_320SPS, // Index 4
+};
 
 /*! The possible calibration modes */
 typedef enum _calib_mode {
@@ -142,8 +162,8 @@ defined(CONFIG_NAU7802_LOADCELL_TRIGGER_DIRECT)
 struct nau7802_loadcell_config {
     /* other configuration to store in ROM */
     const struct i2c_dt_spec bus;
-	uint16_t conversions_per_second;
-	uint8_t gain;
+	uint16_t conversions_per_second_idx;
+	uint8_t gain_idx;
 
 #ifdef CONFIG_NAU7802_LOADCELL_TRIGGER
     const struct gpio_dt_spec drdy_gpios;

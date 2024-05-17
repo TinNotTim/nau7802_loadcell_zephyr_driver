@@ -37,25 +37,25 @@ properties:
       Number of force readings performed by the NAU7802 per second.
       10 conversions per second is the power-on reset configuration.
     enum: 
-      - 0 # 10 SPS
-      - 1 # 20 SPS
-      - 2 # 40 SPS
-      - 3 # 80 SPS
-      - 7 # 320 SPS
+      - 10 # SPS
+      - 20 #SPS
+      - 40 #SPS
+      - 80 #SPS
+      - 320 #SPS
   gain:
     type: int
     default: 1    
     description: |
       ADC gain factor. The default value is x1 at power on.
     enum:
-      - 0 # gain: 1
-      - 1 # gain: 2
-      - 2 # gain: 4
-      - 3 # gain: 8
-      - 4 # gain: 16
-      - 5 # gain: 32
-      - 6 # gain: 64
-      - 7 # gain: 128
+      - 1
+      - 2
+      - 4
+      - 8
+      - 16
+      - 32
+      - 64
+      - 128
   # calibration-factor:
   #   type: string
   #   default: "1.0"
