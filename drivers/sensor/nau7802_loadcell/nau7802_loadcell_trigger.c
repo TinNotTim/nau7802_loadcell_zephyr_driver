@@ -96,7 +96,10 @@ int nau7802_loadcell_trigger_set(const struct device *dev,
 	/* Put them into sensor device struct*/
 	data->trig_drdy = trig;
 	data->handler_drdy = handler;
-	
+
+	/* kick start the read process*/
+	nau7802_loadcell_handle_interrupt(dev);
+
 	/* success*/
 	LOG_DBG("Trigger set process done");
 	return 0;
