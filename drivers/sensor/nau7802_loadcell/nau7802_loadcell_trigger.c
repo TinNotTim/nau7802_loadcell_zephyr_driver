@@ -11,9 +11,9 @@ LOG_MODULE_DECLARE(NAU7802_LOADCELL, LOG_LEVEL_DBG);
 // LOG_MODULE_DECLARE(NAU7802_LOADCELL, CONFIG_I2C_LOG_LEVEL);
 
 /**
- * nau7802_loadcell_handle_interrupts - send the sensor device to user defined handler function
+ * nau7802_loadcell_handle_interrupt - send the sensor device to user defined handler function
  */
-static void nau7802_loadcell_handle_interrupts(const void *arg)
+static void nau7802_loadcell_handle_interrupt(const void *arg)
 {
 	const struct device *nau7802_loadcell = (const struct device *)arg;
 	struct nau7802_loadcell_data *data = nau7802_loadcell->data;
@@ -42,7 +42,7 @@ static void nau7802_loadcell_gpio_callback(const struct device *port,
 #elif defined(CONFIG_NAU7802_LOADCELL_TRIGGER_GLOBAL_THREAD)
 	k_work_submit(&data->work);
 #elif defined(CONFIG_NAU7802_LOADCELL_TRIGGER_DIRECT)
-	nau7802_loadcell_handle_interrupts(data->dev);
+	nau7802_loadcell_handle_interrupt(data->dev);
 #endif
 }
 
@@ -81,7 +81,6 @@ int nau7802_loadcell_trigger_set(const struct device *dev,
 			  const struct sensor_trigger *trig,
 			  sensor_trigger_handler_t handler)
 {
-	const struct nau7802_loadcell_config *config = dev->config;
 	struct nau7802_loadcell_data *data = dev->data;
 
     /* trig and handler are user-defined */
@@ -89,7 +88,7 @@ int nau7802_loadcell_trigger_set(const struct device *dev,
 	if (trig->type != SENSOR_TRIG_DATA_READY) {
 		return -ENOTSUP;
 	}
-	
+
 	/* Put them into sensor device struct*/
 	data->trig_drdy = trig;
 	data->handler_drdy = handler;
