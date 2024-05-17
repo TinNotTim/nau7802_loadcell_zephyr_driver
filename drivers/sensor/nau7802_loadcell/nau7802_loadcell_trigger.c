@@ -6,6 +6,7 @@
 #include <zephyr/drivers/gpio.h>
 #include "nau7802_loadcell.h"
 
+#ifdef CONFIG_NAU7802_LOADCELL_TRIGGER
 /* Declare the module to logging submodule*/
 LOG_MODULE_DECLARE(NAU7802_LOADCELL, LOG_LEVEL_DBG);
 // LOG_MODULE_DECLARE(NAU7802_LOADCELL, CONFIG_I2C_LOG_LEVEL);
@@ -18,10 +19,12 @@ static void nau7802_loadcell_handle_interrupt(const void *arg)
 	const struct device *nau7802_loadcell = (const struct device *)arg;
 	struct nau7802_loadcell_data *data = nau7802_loadcell->data;
 
-	if (data->handler_drdy) {
+	if (data->handler_drdy != NULL) {
 		data->handler_drdy(nau7802_loadcell, data->trig_drdy);
 	}
 }
+
+
 
 /**
  * nau7802_loadcell_gpio_callback - the drdy interrupt callback function
@@ -45,6 +48,7 @@ static void nau7802_loadcell_gpio_callback(const struct device *port,
 	nau7802_loadcell_handle_interrupt(data->dev);
 #endif
 }
+
 
 #ifdef CONFIG_NAU7802_LOADCELL_TRIGGER_OWN_THREAD
 static void nau7802_loadcell_thread(void *p1, void *p2, void *p3)
@@ -164,4 +168,7 @@ int nau7802_loadcell_init_interrupt(const struct device *dev)
     LOG_DBG("Trigger init success");
 	return 0;
 }
+
+#endif
+
 

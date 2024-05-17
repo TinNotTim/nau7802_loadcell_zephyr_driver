@@ -1,7 +1,7 @@
 # Copyright (c) 2024, Tin Chiang.
 # SPDX-License-Identifier: Apache-2.0
 
-config NAU7802_LOADCELL
+menuconfig NAU7802_LOADCELL
 	bool "NAU7802 24-Bit Dual-Channel ADC with Loadcell"
 	default y
 	# depends on DT_HAS_ZEPHYR_NAU7802_LOADCELL_ENABLED
@@ -9,6 +9,7 @@ config NAU7802_LOADCELL
 	help
 	  Enable driver for NAU7802 24-Bit Dual-Channel ADC For loadcell.
 	  Noted: NAU7802 can be used with multiple bridge sensor, but this driver is specifically designed for loadcell
+if NAU7802_LOADCELL
 
 choice NAU7802_LOADCELL_TRIGGER_MODE
 	prompt "Trigger mode"
@@ -34,6 +35,7 @@ endchoice
 
 config NAU7802_LOADCELL_TRIGGER
 	bool
+# if NAU7802_LOADCELL_TRIGGER
 
 config NAU7802_LOADCELL_THREAD_PRIORITY
 	int "Own thread priority"
@@ -49,3 +51,5 @@ config NAU7802_LOADCELL_THREAD_STACK_SIZE
 	help
 	  Stack size of thread used by the driver to handle interrupts.
 
+# endif #NAU7802_LOADCELL_TRIGGER
+endif #NAU7802_LOADCELL
