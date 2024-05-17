@@ -265,12 +265,13 @@ static int nau7802_setRate(const struct nau7802_loadcell_config *config)
 /*!
     @brief  The ADC offset error setter
     @param offset Should be a float value to add on the calibrated sensor
-	reading.
+	reading. It's expressed as int32.
+	Use memcpy to extract the data from offset->val1
     @returns 0 if seccess
 */
 /**************************************************************************/
 // static int nau7802_setOffset(const struct device *nau7802, const struct sensor_value *offset)
-static int nau7802_setOffset(const struct device *nau7802, float32_t *offset)
+static int nau7802_setOffset(const struct device *nau7802, const struct sensor_value *offset)
 {
 	struct nau7802_loadcell_data *data = nau7802->data;
 
@@ -279,7 +280,8 @@ static int nau7802_setOffset(const struct device *nau7802, float32_t *offset)
 		return -ENOTSUP;
 	}
 	
-	data->zero_offset = *offset;
+	/* Reconstruct the input value to float*/
+	memcpy(&data->zero_offset, &offset->val1, sizeof(float32_t));
 	
 	/* success*/
 	return 0;
@@ -288,12 +290,13 @@ static int nau7802_setOffset(const struct device *nau7802, float32_t *offset)
 /**************************************************************************/
 /*!
     @brief  The calibration factor setter
-    @param calibrationFactor Should be a float value
+    @param calibrationFactor Should be a float value but express as int32.
+	Use memcpy to extract the data from calibrationFactor->val1
     @returns 0 if seccess
 */
 /**************************************************************************/
 // static int nau7802_setCalibration(const struct device *nau7802, const struct sensor_value *calibrationFactor)
-static int nau7802_setCalibration(const struct device *nau7802, float32_t *calibrationFactor)
+static int nau7802_setCalibration(const struct device *nau7802, const struct sensor_value *calibrationFactor)
 {
 	struct nau7802_loadcell_data *data = nau7802->data;
 
@@ -302,7 +305,8 @@ static int nau7802_setCalibration(const struct device *nau7802, float32_t *calib
 		return -ENOTSUP;
 	}
 	
-	data->calibration_factor = *calibrationFactor;
+	/* Reconstruct the input value to float*/
+	memcpy(&data->calibration_factor, &calibrationFactor->val1, sizeof(float32_t));
 	
 	/* success*/
 	return 0;
@@ -314,8 +318,9 @@ static int nau7802_setCalibration(const struct device *nau7802, float32_t *calib
 // 			   enum sensor_attribute attr,
 // 			   const struct sensor_value *val)
 static int nau7802_loadcell_attr_set(const struct device *dev,
+			   enum sensor_channel chan,
 			   enum sensor_attribute attr,
-			   float32_t *val)
+			   const struct sensor_value *val)
 {
 	int ret;
 
@@ -326,7 +331,7 @@ static int nau7802_loadcell_attr_set(const struct device *dev,
 		return nau7802_setCalibration(dev, val);
 
 	default:
-		LOG_WRN("attr_set() not supported on this channel.");
+		LOG_WRN("attr_set() does not support this attribute.");
 		return -ENOTSUP;
 	}
 
