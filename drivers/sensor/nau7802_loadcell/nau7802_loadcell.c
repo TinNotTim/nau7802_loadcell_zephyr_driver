@@ -8,8 +8,8 @@
 #include "nau7802_loadcell.h"
 
 /* Register the module to logging submodule*/
-LOG_MODULE_REGISTER(NAU7802_LOADCELL, LOG_LEVEL_DBG);
-// LOG_MODULE_REGISTER(NAU7802_LOADCELL, CONFIG_I2C_LOG_LEVEL);
+// LOG_MODULE_REGISTER(NAU7802_LOADCELL, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(NAU7802_LOADCELL, CONFIG_I2C_LOG_LEVEL);
 
 /**************************************************************************/
 /*!
@@ -357,9 +357,9 @@ static int nau7802_loadcell_sample_fetch(const struct device *dev,
 	}
 
     /* Reconstruct the 24-bit output data*/
-	data->sample = (int32_t)((uint32_t)(out[0]) |
+	data->sample = (int32_t)((uint32_t)(out[2]) |
 				     ((uint32_t)(out[1]) << 8) |
-				     ((uint32_t)(out[2]) << 16));
+				     ((uint32_t)(out[0]) << 16));
 
 
 	return 0;
@@ -378,10 +378,11 @@ static int nau7802_loadcell_channel_get(const struct device *dev,
 	}
 
     /* convert the ADC value to force value */
-	uval = (float)(data->sample) * data->calibration_factor + data->zero_offset;
-    fraction = modf(uval, &integer);
-	val->val1 = (int32_t)integer;
-	val->val2 = (int32_t)fraction;
+	uval = (float32_t)(data->sample) * data->calibration_factor + data->zero_offset;
+    // fraction = modf(uval, &integer);
+	// val->val1 = (int32_t)integer;
+	// val->val2 = (int32_t)(fraction*1000000;
+	sensor_value_from_float(val, uval);
 
 	return 0;
 }
