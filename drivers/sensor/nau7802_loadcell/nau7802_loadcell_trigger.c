@@ -39,21 +39,13 @@ static void nau7802_loadcell_gpio_callback(const struct device *port,
 	ARG_UNUSED(port);
 	ARG_UNUSED(pin);
 
-	/* Depends on the trigger mode, handle the interrupt differently*/
-	if(IS_ENABLED(CONFIG_NAU7802_LOADCELL_TRIGGER_OWN_THREAD))
-	{
-		k_sem_give(&data->gpio_sem);
-	}
-	else if (IS_ENABLED(CONFIG_NAU7802_LOADCELL_TRIGGER_GLOBAL_THREAD))
-	{
-		k_work_submit(&data->work);
-	}
-	else if (IS_ENABLED(CONFIG_NAU7802_LOADCELL_TRIGGER_DIRECT))
-	{
-		nau7802_loadcell_handle_interrupt(data->dev);
-	}
-
-	return;
+#if defined(CONFIG_NAU7802_LOADCELL_TRIGGER_OWN_THREAD)
+	k_sem_give(&data->gpio_sem);
+#elif defined(CONFIG_NAU7802_LOADCELL_TRIGGER_GLOBAL_THREAD)
+	k_work_submit(&data->work);
+#elif defined(CONFIG_NAU7802_LOADCELL_TRIGGER_DIRECT)
+	nau7802_loadcell_handle_interrupt(data->dev);
+#endif
 }
 
 
@@ -126,7 +118,7 @@ int nau7802_loadcell_init_interrupt(const struct device *dev)
     /* Check if the gpio port exists */
     if(config->drdy_gpios.port == NULL){
         LOG_ERR("gpio_drdy not defined in DT");
-        return -ENODEV;
+        return ENODEV;
     }
 
     /* Check if the gpio port is ready */
@@ -157,26 +149,22 @@ int nau7802_loadcell_init_interrupt(const struct device *dev)
     }
 
     /* Depend on the trigger mode, enable thread*/
-	if(IS_ENABLED(CONFIG_NAU7802_LOADCELL_TRIGGER_OWN_THREAD))
-	{
-		k_sem_init(&data->gpio_sem, 0, K_SEM_MAX_LIMIT);
+#if defined(CONFIG_NAU7802_LOADCELL_TRIGGER_OWN_THREAD)
+	k_sem_init(&data->gpio_sem, 0, K_SEM_MAX_LIMIT);
 
-		k_thread_create(&data->thread, data->thread_stack,
-				CONFIG_NAU7802_LOADCELL_THREAD_STACK_SIZE,
-				nau7802_loadcell_thread, (void *)dev,
-				NULL, NULL, K_PRIO_COOP(CONFIG_NAU7802_LOADCELL_THREAD_PRIORITY),
-				0, K_NO_WAIT);
-	}
-	else if (IS_ENABLED(CONFIG_NAU7802_LOADCELL_TRIGGER_GLOBAL_THREAD))
-	{
-		data->work.handler = nau7802_loadcell_work_cb;
-	}
+	k_thread_create(&data->thread, data->thread_stack,
+			CONFIG_NAU7802_LOADCELL_THREAD_STACK_SIZE,
+			nau7802_loadcell_thread, (void *)dev,
+			NULL, NULL, K_PRIO_COOP(CONFIG_NAU7802_LOADCELL_THREAD_PRIORITY),
+			0, K_NO_WAIT);
+#elif defined(CONFIG_NAU7802_LOADCELL_TRIGGER_GLOBAL_THREAD)
+	data->work.handler = nau7802_loadcell_work_cb;
+#endif /* CONFIG_NAU7802_LOADCELL_TRIGGER_OWN_THREAD */
 
-	if(IS_ENABLED(CONFIG_NAU7802_LOADCELL_TRIGGER_GLOBAL_THREAD) || 
-		IS_ENABLED(CONFIG_NAU7802_LOADCELL_TRIGGER_DIRECT))
-	{
-		data->dev = dev;
-	}
+#if defined(CONFIG_NAU7802_LOADCELL_TRIGGER_GLOBAL_THREAD) || \
+	defined(CONFIG_NAU7802_LOADCELL_TRIGGER_DIRECT)
+	data->dev = dev;
+#endif
 	
     /* Success*/
     LOG_DBG("Trigger init success");
