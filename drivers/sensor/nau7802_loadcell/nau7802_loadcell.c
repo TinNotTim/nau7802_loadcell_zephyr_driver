@@ -314,9 +314,6 @@ static int nau7802_setCalibration(const struct device *nau7802, const struct sen
 
 
 /* Sensor API function implementation*/
-// static int nau7802_loadcell_attr_set(const struct device *dev,
-// 			   enum sensor_attribute attr,
-// 			   const struct sensor_value *val)
 static int nau7802_loadcell_attr_set(const struct device *dev,
 			   enum sensor_channel chan,
 			   enum sensor_attribute attr,
@@ -371,17 +368,13 @@ static int nau7802_loadcell_channel_get(const struct device *dev,
 {
 	struct nau7802_loadcell_data *data = dev->data;
 	float uval;
-    double integer, fraction;
-
+	
 	if ((enum sensor_channel_nuvoton_nau7802_loadcell)chan != SENSOR_CHAN_FORCE) {
 		return -ENOTSUP;
 	}
 
     /* convert the ADC value to force value */
 	uval = (float32_t)(data->sample) * data->calibration_factor + data->zero_offset;
-    // fraction = modf(uval, &integer);
-	// val->val1 = (int32_t)integer;
-	// val->val2 = (int32_t)(fraction*1000000;
 	sensor_value_from_float(val, uval);
 
 	return 0;
