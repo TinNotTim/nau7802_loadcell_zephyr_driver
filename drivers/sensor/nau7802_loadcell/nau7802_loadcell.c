@@ -377,7 +377,7 @@ static int nau7802_loadcell_channel_get(const struct device *dev,
 	uval = (float32_t)(data->sample) * data->calibration_factor + data->zero_offset;
 	sensor_value_from_float(val, uval);
 
-	return 0;
+	return;
 }
 
 /* Define API structure*/
