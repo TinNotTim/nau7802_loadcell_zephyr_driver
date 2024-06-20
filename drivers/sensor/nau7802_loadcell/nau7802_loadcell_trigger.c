@@ -1,4 +1,4 @@
-# /*
+#/*
  * Copyright (c) 2024, Tin Chiang
  *
  * SPDX-License-Identifier: Apache-2.0
@@ -23,18 +23,14 @@ static void nau7802_loadcell_handle_interrupt(const void *arg)
 	}
 }
 
-
-
 /**
  * nau7802_loadcell_gpio_callback - the drdy interrupt callback function
  */
-static void nau7802_loadcell_gpio_callback(const struct device *port,
-				 struct gpio_callback *cb,
-				 uint32_t pin)
+static void nau7802_loadcell_gpio_callback(const struct device *port, struct gpio_callback *cb,
+					   uint32_t pin)
 {
-	struct nau7802_loadcell_data *data = CONTAINER_OF(cb,
-						struct nau7802_loadcell_data,
-						gpio_cb);
+	struct nau7802_loadcell_data *data =
+		CONTAINER_OF(cb, struct nau7802_loadcell_data, gpio_cb);
 
 	ARG_UNUSED(port);
 	ARG_UNUSED(pin);
@@ -48,7 +44,6 @@ static void nau7802_loadcell_gpio_callback(const struct device *port,
 #endif
 }
 
-
 #ifdef CONFIG_NAU7802_LOADCELL_TRIGGER_OWN_THREAD
 static void nau7802_loadcell_thread(void *p1, void *p2, void *p3)
 {
@@ -56,8 +51,7 @@ static void nau7802_loadcell_thread(void *p1, void *p2, void *p3)
 	ARG_UNUSED(p3);
 
 	const struct device *nau7802_loadcell = (const struct device *)p1;
-    struct nau7802_loadcell_data *data = nau7802_loadcell->data;
-
+	struct nau7802_loadcell_data *data = nau7802_loadcell->data;
 
 	while (1) {
 		k_sem_take(&data->gpio_sem, K_FOREVER);
@@ -76,17 +70,15 @@ static void nau7802_loadcell_work_cb(struct k_work *work)
 }
 #endif /* CONFIG_NAU7802_LOADCELL_TRIGGER_GLOBAL_THREAD */
 
-
 /**
  * nau7802_loadcell_trigger_set - link external trigger to event data ready
  */
-int nau7802_loadcell_trigger_set(const struct device *dev,
-			  const struct sensor_trigger *trig,
-			  sensor_trigger_handler_t handler)
+int nau7802_loadcell_trigger_set(const struct device *dev, const struct sensor_trigger *trig,
+				 sensor_trigger_handler_t handler)
 {
 	struct nau7802_loadcell_data *data = dev->data;
 
-    /* trig and handler are user-defined */
+	/* trig and handler are user-defined */
 	/* Make sure the trigger type is correct*/
 	if (trig->type != SENSOR_TRIG_DATA_READY) {
 		return -ENOTSUP;
@@ -104,7 +96,6 @@ int nau7802_loadcell_trigger_set(const struct device *dev,
 	return 0;
 }
 
-
 /**
  * nau7802_loadcell_trigger_set - Configure the gpio pin to be interrpt pin
  */
@@ -113,64 +104,61 @@ int nau7802_loadcell_init_interrupt(const struct device *dev)
 	const struct nau7802_loadcell_config *config = dev->config;
 	struct nau7802_loadcell_data *data = dev->data;
 
-    int ret;
+	int ret;
 
-    /* Check if the gpio port exists */
-    if(config->drdy_gpios.port == NULL){
-        LOG_ERR("gpio_drdy not defined in DT");
-        return ENODEV;
-    }
+	/* Check if the gpio port exists */
+	if (config->drdy_gpios.port == NULL) {
+		LOG_ERR("gpio_drdy not defined in DT");
+		return ENODEV;
+	}
 
-    /* Check if the gpio port is ready */
-    if (!gpio_is_ready_dt(&config->drdy_gpios)) {
+	/* Check if the gpio port is ready */
+	if (!gpio_is_ready_dt(&config->drdy_gpios)) {
 		LOG_ERR("device %s is not ready", config->drdy_gpios.port->name);
 		return -ENODEV;
 	}
 
-    /* set up data ready gpio as input */
-    ret = gpio_pin_configure_dt(&config->drdy_gpios, GPIO_INPUT|GPIO_ACTIVE_HIGH);
-    if(ret != 0){
-        LOG_ERR("ret:%d, Setting %s to input fail", ret, config->drdy_gpios.port->name);
-        return ret;
-    }
+	/* set up data ready gpio as input */
+	ret = gpio_pin_configure_dt(&config->drdy_gpios, GPIO_INPUT | GPIO_ACTIVE_HIGH);
+	if (ret != 0) {
+		LOG_ERR("ret:%d, Setting %s to input fail", ret, config->drdy_gpios.port->name);
+		return ret;
+	}
 
-    /* Register the handler to GPIO pin*/
-    gpio_init_callback(&data->gpio_cb, nau7802_loadcell_gpio_callback, BIT(config->drdy_gpios.pin));
-    ret = gpio_add_callback(config->drdy_gpios.port, &data->gpio_cb);
-    if(ret != 0){
-        LOG_ERR("ret:%d, setting up callback fail", ret);
-        return ret;
-    }
+	/* Register the handler to GPIO pin*/
+	gpio_init_callback(&data->gpio_cb, nau7802_loadcell_gpio_callback,
+			   BIT(config->drdy_gpios.pin));
+	ret = gpio_add_callback(config->drdy_gpios.port, &data->gpio_cb);
+	if (ret != 0) {
+		LOG_ERR("ret:%d, setting up callback fail", ret);
+		return ret;
+	}
 
-    /* setup data ready gpio interrupt */
-    ret = gpio_pin_interrupt_configure_dt(&config->drdy_gpios, GPIO_INT_EDGE_TO_ACTIVE);
-    if(ret != 0){
-        LOG_ERR("ret:%d, Setting %s to interrupt pin fail", ret, config->drdy_gpios.port->name);
-    }
+	/* setup data ready gpio interrupt */
+	ret = gpio_pin_interrupt_configure_dt(&config->drdy_gpios, GPIO_INT_EDGE_TO_ACTIVE);
+	if (ret != 0) {
+		LOG_ERR("ret:%d, Setting %s to interrupt pin fail", ret,
+			config->drdy_gpios.port->name);
+	}
 
-    /* Depend on the trigger mode, enable thread*/
+	/* Depend on the trigger mode, enable thread*/
 #if defined(CONFIG_NAU7802_LOADCELL_TRIGGER_OWN_THREAD)
 	k_sem_init(&data->gpio_sem, 0, K_SEM_MAX_LIMIT);
 
 	k_thread_create(&data->thread, data->thread_stack,
-			CONFIG_NAU7802_LOADCELL_THREAD_STACK_SIZE,
-			nau7802_loadcell_thread, (void *)dev,
-			NULL, NULL, K_PRIO_COOP(CONFIG_NAU7802_LOADCELL_THREAD_PRIORITY),
-			0, K_NO_WAIT);
+			CONFIG_NAU7802_LOADCELL_THREAD_STACK_SIZE, nau7802_loadcell_thread,
+			(void *)dev, NULL, NULL,
+			K_PRIO_COOP(CONFIG_NAU7802_LOADCELL_THREAD_PRIORITY), 0, K_NO_WAIT);
 #elif defined(CONFIG_NAU7802_LOADCELL_TRIGGER_GLOBAL_THREAD)
 	data->work.handler = nau7802_loadcell_work_cb;
 #endif /* CONFIG_NAU7802_LOADCELL_TRIGGER_OWN_THREAD */
 
-#if defined(CONFIG_NAU7802_LOADCELL_TRIGGER_GLOBAL_THREAD) || \
+#if defined(CONFIG_NAU7802_LOADCELL_TRIGGER_GLOBAL_THREAD) ||                                      \
 	defined(CONFIG_NAU7802_LOADCELL_TRIGGER_DIRECT)
 	data->dev = dev;
 #endif
-	
-    /* Success*/
-    LOG_DBG("Trigger init success");
+
+	/* Success*/
+	LOG_DBG("Trigger init success");
 	return 0;
 }
-
-
-
-

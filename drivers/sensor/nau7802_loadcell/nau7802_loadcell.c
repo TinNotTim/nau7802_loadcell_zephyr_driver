@@ -21,28 +21,22 @@ static int nau7802_reset(const struct nau7802_loadcell_config *config)
 {
 	int ret;
 	/* Set the RR bit to 1 in R0x00, to guarantee a reset of all register values.*/
-	ret = i2c_reg_update_byte_dt(&config->bus, 
-								NAU7802_PU_CTRL, 
-								NAU7802_MASK_PU_CTRL_RR, 
-								(1 << NAU7802_SHIFT_PU_CTRL_RR));
-	if(ret != 0){
+	ret = i2c_reg_update_byte_dt(&config->bus, NAU7802_PU_CTRL, NAU7802_MASK_PU_CTRL_RR,
+				     (1 << NAU7802_SHIFT_PU_CTRL_RR));
+	if (ret != 0) {
 		LOG_ERR("ret:%d, Chip reset failed", ret);
 		return ret;
 	}
 	/* Set the RR bit to 0 and PUD bit 1, in R0x00, to enter normal operation*/
-	ret = i2c_reg_update_byte_dt(&config->bus, 
-								NAU7802_PU_CTRL, 
-								NAU7802_MASK_PU_CTRL_RR, 
-								(0 << NAU7802_SHIFT_PU_CTRL_RR));
-	if(ret != 0){
+	ret = i2c_reg_update_byte_dt(&config->bus, NAU7802_PU_CTRL, NAU7802_MASK_PU_CTRL_RR,
+				     (0 << NAU7802_SHIFT_PU_CTRL_RR));
+	if (ret != 0) {
 		LOG_ERR("ret:%d, Chip reset RR bit failed", ret);
 		return ret;
 	}
-	ret = i2c_reg_update_byte_dt(&config->bus, 
-								NAU7802_PU_CTRL, 
-								NAU7802_MASK_PU_CTRL_PUD, 
-								(1 << NAU7802_SHIFT_PU_CTRL_PUD));
-	if(ret != 0){
+	ret = i2c_reg_update_byte_dt(&config->bus, NAU7802_PU_CTRL, NAU7802_MASK_PU_CTRL_PUD,
+				     (1 << NAU7802_SHIFT_PU_CTRL_PUD));
+	if (ret != 0) {
 		LOG_ERR("ret:%d, Chip set PUD bit failed", ret);
 		return ret;
 	}
@@ -52,15 +46,13 @@ static int nau7802_reset(const struct nau7802_loadcell_config *config)
 	*/
 	k_sleep(K_USEC(300));
 	uint8_t pu_ctrl_val;
-	ret = i2c_reg_read_byte_dt(&config->bus, 
-							NAU7802_PU_CTRL, 
-							&pu_ctrl_val);
-	if(ret != 0){
+	ret = i2c_reg_read_byte_dt(&config->bus, NAU7802_PU_CTRL, &pu_ctrl_val);
+	if (ret != 0) {
 		LOG_ERR("ret:%d, Read PUR bit failed", ret);
 		return ret;
 	}
 
-	if((pu_ctrl_val & NAU7802_MASK_PU_CTRL_PUR) == 0){
+	if ((pu_ctrl_val & NAU7802_MASK_PU_CTRL_PUR) == 0) {
 		LOG_ERR("Chip is not powered up, PUR bit is 0.");
 		return EIO;
 	}
@@ -79,23 +71,21 @@ static int nau7802_enable(const struct nau7802_loadcell_config *config, bool fla
 {
 	int ret;
 	/* Turn off the IC*/
-	if(!flag){
+	if (!flag) {
 		/* Reset the PUA bit*/
-		ret = i2c_reg_update_byte_dt(&config->bus, 
-									NAU7802_PU_CTRL, 
-									NAU7802_MASK_PU_CTRL_PUA, 
-									(0 << NAU7802_SHIFT_PU_CTRL_PUA));
-		if(ret != 0){
+		ret = i2c_reg_update_byte_dt(&config->bus, NAU7802_PU_CTRL,
+					     NAU7802_MASK_PU_CTRL_PUA,
+					     (0 << NAU7802_SHIFT_PU_CTRL_PUA));
+		if (ret != 0) {
 			LOG_ERR("ret:%d, Chip reset PUA bit failed", ret);
 			return ret;
 		}
 
 		/* Reset the PUD bit*/
-		ret = i2c_reg_update_byte_dt(&config->bus, 
-									NAU7802_PU_CTRL, 
-									NAU7802_MASK_PU_CTRL_PUD, 
-									(0 << NAU7802_SHIFT_PU_CTRL_PUD));
-		if(ret != 0){
+		ret = i2c_reg_update_byte_dt(&config->bus, NAU7802_PU_CTRL,
+					     NAU7802_MASK_PU_CTRL_PUD,
+					     (0 << NAU7802_SHIFT_PU_CTRL_PUD));
+		if (ret != 0) {
 			LOG_ERR("ret:%d, Chip reset PUD bit failed", ret);
 			return ret;
 		}
@@ -105,21 +95,17 @@ static int nau7802_enable(const struct nau7802_loadcell_config *config, bool fla
 
 	/* Turn on the IC*/
 	/* Set the PUA bit*/
-	ret = i2c_reg_update_byte_dt(&config->bus, 
-								NAU7802_PU_CTRL, 
-								NAU7802_MASK_PU_CTRL_PUA, 
-								(1 << NAU7802_SHIFT_PU_CTRL_PUA));
-	if(ret != 0){
+	ret = i2c_reg_update_byte_dt(&config->bus, NAU7802_PU_CTRL, NAU7802_MASK_PU_CTRL_PUA,
+				     (1 << NAU7802_SHIFT_PU_CTRL_PUA));
+	if (ret != 0) {
 		LOG_ERR("ret:%d, Chip set PUA bit failed", ret);
 		return ret;
 	}
 
 	/* Set the PUD bit*/
-	ret = i2c_reg_update_byte_dt(&config->bus, 
-								NAU7802_PU_CTRL, 
-								NAU7802_MASK_PU_CTRL_PUD, 
-								(1 << NAU7802_SHIFT_PU_CTRL_PUD));
-	if(ret != 0){
+	ret = i2c_reg_update_byte_dt(&config->bus, NAU7802_PU_CTRL, NAU7802_MASK_PU_CTRL_PUD,
+				     (1 << NAU7802_SHIFT_PU_CTRL_PUD));
+	if (ret != 0) {
 		LOG_ERR("ret:%d, Chip set PUD bit failed", ret);
 		return ret;
 	}
@@ -131,22 +117,18 @@ static int nau7802_enable(const struct nau7802_loadcell_config *config, bool fla
 	k_sleep(K_MSEC(600));
 
 	uint8_t pu_ctrl_val;
-	ret = i2c_reg_read_byte_dt(&config->bus, 
-								NAU7802_PU_CTRL, 
-								&pu_ctrl_val);
-	if(ret != 0){
+	ret = i2c_reg_read_byte_dt(&config->bus, NAU7802_PU_CTRL, &pu_ctrl_val);
+	if (ret != 0) {
 		LOG_ERR("ret:%d, Read PUR bit failed", ret);
 		return ret;
 	}
 
-	if((pu_ctrl_val & NAU7802_MASK_PU_CTRL_PUR) == 0){
+	if ((pu_ctrl_val & NAU7802_MASK_PU_CTRL_PUR) == 0) {
 		LOG_ERR("Chip is not powered up, PUR bit is 0.");
 		return EIO;
 	}
 	/* success*/
 	return 0;
-
-
 }
 
 /**************************************************************************/
@@ -162,13 +144,12 @@ static int nau7802_setLDO(const struct nau7802_loadcell_config *config, NAU7802_
 {
 	int ret;
 
-	if (voltage == NAU7802_EXTERNAL){
+	if (voltage == NAU7802_EXTERNAL) {
 		/* Reset the AVDD bit in PU_CTRL register*/
-		ret = i2c_reg_update_byte_dt(&config->bus, 
-									NAU7802_PU_CTRL, 
-									NAU7802_MASK_PU_CTRL_AVDDS, 
-									(0 << NAU7802_SHIFT_PU_CTRL_AVDDS));
-		if(ret != 0){
+		ret = i2c_reg_update_byte_dt(&config->bus, NAU7802_PU_CTRL,
+					     NAU7802_MASK_PU_CTRL_AVDDS,
+					     (0 << NAU7802_SHIFT_PU_CTRL_AVDDS));
+		if (ret != 0) {
 			LOG_ERR("ret:%d, Chip reset AVDDS bit failed", ret);
 			return ret;
 		}
@@ -178,21 +159,17 @@ static int nau7802_setLDO(const struct nau7802_loadcell_config *config, NAU7802_
 	}
 
 	/* Set the AVDD bit in PU_CTRL register*/
-	ret = i2c_reg_update_byte_dt(&config->bus, 
-								NAU7802_PU_CTRL, 
-								NAU7802_MASK_PU_CTRL_AVDDS, 
-								(1 << NAU7802_SHIFT_PU_CTRL_AVDDS));
-	if(ret != 0){
+	ret = i2c_reg_update_byte_dt(&config->bus, NAU7802_PU_CTRL, NAU7802_MASK_PU_CTRL_AVDDS,
+				     (1 << NAU7802_SHIFT_PU_CTRL_AVDDS));
+	if (ret != 0) {
 		LOG_ERR("ret:%d, Chip set AVDDS bit failed", ret);
 		return ret;
 	}
 
 	/* Write the LDO voltage to CTRL1 register*/
-	ret = i2c_reg_update_byte_dt(&config->bus, 
-								NAU7802_CTRL1, 
-								NAU7802_MASK_CTRL1_VLDO, 
-								(voltage << NAU7802_SHIFT_CTRL1_VLDO));
-	if(ret != 0){
+	ret = i2c_reg_update_byte_dt(&config->bus, NAU7802_CTRL1, NAU7802_MASK_CTRL1_VLDO,
+				     (voltage << NAU7802_SHIFT_CTRL1_VLDO));
+	if (ret != 0) {
 		LOG_ERR("ret:%d, Chip set VLDO bits failed", ret);
 		return ret;
 	}
@@ -203,14 +180,14 @@ static int nau7802_setLDO(const struct nau7802_loadcell_config *config, NAU7802_
 /**************************************************************************/
 /*!
     @brief  The desired ADC gain setter
-    @param  gain_idx Index of the desired gain in dts bindings: 
-	NAU7802_GAIN_1=0, 
-	NAU7802_GAIN_2=1, 
-	NAU7802_GAIN_4=2, 
-	NAU7802_GAIN_8=3, 
-	NAU7802_GAIN_16=4, 
-	NAU7802_GAIN_32=5, 
-	NAU7802_GAIN_64=6, 
+    @param  gain_idx Index of the desired gain in dts bindings:
+	NAU7802_GAIN_1=0,
+	NAU7802_GAIN_2=1,
+	NAU7802_GAIN_4=2,
+	NAU7802_GAIN_8=3,
+	NAU7802_GAIN_16=4,
+	NAU7802_GAIN_32=5,
+	NAU7802_GAIN_64=6,
 	NAU7802_GAIN_128=7
     @returns 0 if seccess
 */
@@ -220,11 +197,9 @@ static int nau7802_setGain(const struct nau7802_loadcell_config *config)
 	int ret;
 	NAU7802_Gain gain = GainMap[config->gain_idx];
 	/* Write the PGA gain to CTRL1 register*/
-	ret = i2c_reg_update_byte_dt(&config->bus, 
-								NAU7802_CTRL1, 
-								NAU7802_MASK_CTRL1_GAINS, 
-								(gain << NAU7802_SHIFT_CTRL1_GAINS));
-	if(ret != 0){
+	ret = i2c_reg_update_byte_dt(&config->bus, NAU7802_CTRL1, NAU7802_MASK_CTRL1_GAINS,
+				     (gain << NAU7802_SHIFT_CTRL1_GAINS));
+	if (ret != 0) {
 		LOG_ERR("ret:%d, Chip set GAINS bits failed", ret);
 		return ret;
 	}
@@ -235,11 +210,11 @@ static int nau7802_setGain(const struct nau7802_loadcell_config *config)
 /**************************************************************************/
 /*!
     @brief  The desired conversion rate setter
-    @param conversions_per_second_idx The index of desired rate in dts bindings: 
-	NAU7802_RATE_10SPS=0, 
+    @param conversions_per_second_idx The index of desired rate in dts bindings:
+	NAU7802_RATE_10SPS=0,
 	NAU7802_RATE_20SPS=1,
-	NAU7802_RATE_40SPS=2, 
-	NAU7802_RATE_80SPS=3, 
+	NAU7802_RATE_40SPS=2,
+	NAU7802_RATE_80SPS=3,
 	NAU7802_RATE_320SPS=4
     @returns 0 if seccess
 */
@@ -249,11 +224,9 @@ static int nau7802_setRate(const struct nau7802_loadcell_config *config)
 	int ret;
 	NAU7802_SampleRate rate = sampleRateMap[config->conversions_per_second_idx];
 	/* Write the sample rate to CTRL2 register*/
-	ret = i2c_reg_update_byte_dt(&config->bus, 
-								NAU7802_CTRL2, 
-								NAU7802_MASK_CTRL2_CRS, 
-								(rate << NAU7802_SHIFT_CTRL2_CRS));
-	if(ret != 0){
+	ret = i2c_reg_update_byte_dt(&config->bus, NAU7802_CTRL2, NAU7802_MASK_CTRL2_CRS,
+				     (rate << NAU7802_SHIFT_CTRL2_CRS));
+	if (ret != 0) {
 		LOG_ERR("ret:%d, Chip set CRS bits failed", ret);
 		return ret;
 	}
@@ -275,14 +248,14 @@ static int nau7802_setOffset(const struct device *nau7802, const struct sensor_v
 {
 	struct nau7802_loadcell_data *data = nau7802->data;
 
-	if(offset == NULL){
+	if (offset == NULL) {
 		LOG_ERR("Offset value couldn't be NULL");
 		return -ENOTSUP;
 	}
-	
+
 	/* Reconstruct the input value to float*/
 	memcpy(&data->zero_offset, &offset->val1, sizeof(float32_t));
-	
+
 	/* success*/
 	return 0;
 }
@@ -295,19 +268,21 @@ static int nau7802_setOffset(const struct device *nau7802, const struct sensor_v
     @returns 0 if seccess
 */
 /**************************************************************************/
-// static int nau7802_setCalibration(const struct device *nau7802, const struct sensor_value *calibrationFactor)
-static int nau7802_setCalibration(const struct device *nau7802, const struct sensor_value *calibrationFactor)
+// static int nau7802_setCalibration(const struct device *nau7802, const struct sensor_value
+// *calibrationFactor)
+static int nau7802_setCalibration(const struct device *nau7802,
+				  const struct sensor_value *calibrationFactor)
 {
 	struct nau7802_loadcell_data *data = nau7802->data;
 
-	if(calibrationFactor == NULL){
+	if (calibrationFactor == NULL) {
 		LOG_ERR("Offset value couldn't be NULL");
 		return -ENOTSUP;
 	}
-	
+
 	/* Reconstruct the input value to float*/
 	memcpy(&data->calibration_factor, &calibrationFactor->val1, sizeof(float32_t));
-	
+
 	/* success*/
 	return 0;
 }
@@ -315,78 +290,63 @@ static int nau7802_setCalibration(const struct device *nau7802, const struct sen
 /**************************************************************************/
 /*!
     @brief  Conduct internal sensor calibration
-    @param calibrationMode 
+    @param calibrationMode
     @returns 0 if seccess
 */
 /**************************************************************************/
-static int nau7802_IntCalibration(const struct nau7802_loadcell_config *config, NAU7802_Calibration calibrationMode)
+static int nau7802_IntCalibration(const struct nau7802_loadcell_config *config,
+				  NAU7802_Calibration calibrationMode)
 {
 	int ret;
 
-	if(calibrationMode == NULL){
+	if (calibrationMode == NULL) {
 		LOG_ERR("Calibration mode couldn't be NULL");
 		return -ENOTSUP;
 	}
-	
+
 	/* Write the calib mode to CTRL2 register*/
-	ret = i2c_reg_update_byte_dt(&config->bus, 
-								NAU7802_CTRL2, 
-								NAU7802_MASK_CTRL2_CALMOD, 
-								(calibrationMode << NAU7802_SHIFT_CTRL2_CALMOD));
-	if(ret != 0)
-	{
+	ret = i2c_reg_update_byte_dt(&config->bus, NAU7802_CTRL2, NAU7802_MASK_CTRL2_CALMOD,
+				     (calibrationMode << NAU7802_SHIFT_CTRL2_CALMOD));
+	if (ret != 0) {
 		LOG_ERR("ret%d, Write calib mode failed.", ret);
 		return ret;
 	}
 
 	/* Set the CALS bit in CTRL2 register to start the calibration*/
-	ret = i2c_reg_update_byte_dt(&config->bus, 
-								NAU7802_CTRL2, 
-								NAU7802_MASK_CTRL2_CALS, 
-								(1 << NAU7802_SHIFT_CTRL2_CALS));
-	if(ret != 0)
-	{
+	ret = i2c_reg_update_byte_dt(&config->bus, NAU7802_CTRL2, NAU7802_MASK_CTRL2_CALS,
+				     (1 << NAU7802_SHIFT_CTRL2_CALS));
+	if (ret != 0) {
 		LOG_ERR("ret%d, Failed to start the calibration.", ret);
 		return ret;
 	}
 
 	/* Poll the CALS bit until it became 0*/
 	uint8_t ctrl2_val;
-	ret = i2c_reg_read_byte_dt(&config->bus, 
-								NAU7802_CTRL2, 
-								&ctrl2_val);
-	while((ctrl2_val & NAU7802_MASK_CTRL2_CALS != 0) && (ret==0))
-	{
+	ret = i2c_reg_read_byte_dt(&config->bus, NAU7802_CTRL2, &ctrl2_val);
+	while ((ctrl2_val & NAU7802_MASK_CTRL2_CALS != 0) && (ret == 0)) {
 		k_sleep(K_MSEC(10));
-		ret = i2c_reg_read_byte_dt(&config->bus, 
-									NAU7802_CTRL2, 
-									&ctrl2_val);
+		ret = i2c_reg_read_byte_dt(&config->bus, NAU7802_CTRL2, &ctrl2_val);
 	}
-	if(ret != 0)
-	{
+	if (ret != 0) {
 		LOG_ERR("ret%d, Failed to poll the CALS bit.", ret);
 		return ret;
 	}
 	LOG_DBG("Internal Calibration done");
 
 	/* Check the CAL_ERR bit in CTRL2 to see if the calibration is successful*/
-	if(ctrl2_val & NAU7802_MASK_CTRL2_CAL_ERR != 0)
-	{
+	if (ctrl2_val & NAU7802_MASK_CTRL2_CAL_ERR != 0) {
 		LOG_ERR("Calibration failed.");
 		return -EIO;
-	}	
-	
+	}
+
 	/* success*/
 	LOG_DBG("Internal calibration success");
 	return 0;
 }
 
-
 /* Sensor API function implementation*/
-static int nau7802_loadcell_attr_set(const struct device *dev,
-			   enum sensor_channel chan,
-			   enum sensor_attribute attr,
-			   const struct sensor_value *val)
+static int nau7802_loadcell_attr_set(const struct device *dev, enum sensor_channel chan,
+				     enum sensor_attribute attr, const struct sensor_value *val)
 {
 	int ret;
 
@@ -404,9 +364,7 @@ static int nau7802_loadcell_attr_set(const struct device *dev,
 	return ret;
 }
 
-
-static int nau7802_loadcell_sample_fetch(const struct device *dev,
-				enum sensor_channel chan)
+static int nau7802_loadcell_sample_fetch(const struct device *dev, enum sensor_channel chan)
 {
 	struct nau7802_loadcell_data *data = dev->data;
 	const struct nau7802_loadcell_config *config = dev->config;
@@ -414,32 +372,30 @@ static int nau7802_loadcell_sample_fetch(const struct device *dev,
 
 	if (chan == SENSOR_CHAN_ALL) {
 		if (i2c_burst_read_dt(&config->bus, NAU7802_ADCO_B2, out, 3) < 0) {
-            LOG_DBG("Failed to read sample");
-            return -EIO;
-	    }
+			LOG_DBG("Failed to read sample");
+			return -EIO;
+		}
 	} else {
 		LOG_ERR("Invalid channel");
 		return -ENOTSUP;
 	}
 
-    /* Reconstruct the signed 24-bit output data*/
-	data->sample = (int32_t)((uint32_t)(out[2]) |
-				     ((uint32_t)(out[1]) << 8) |
-				     ((uint32_t)(out[0]) << 16));
+	/* Reconstruct the signed 24-bit output data*/
+	data->sample = (int32_t)((uint32_t)(out[2]) | ((uint32_t)(out[1]) << 8) |
+				 ((uint32_t)(out[0]) << 16));
 
 	/* Check the sign bit of the 24-bit value and extend it */
-	if (data->sample & 0x00800000) {  // If the 24th bit is set
-		data->sample |= 0xFF000000;   // Set the upper 8 bits to 1s
+	if (data->sample & 0x00800000) {    // If the 24th bit is set
+		data->sample |= 0xFF000000; // Set the upper 8 bits to 1s
 	} else {
-		data->sample &= 0x00FFFFFF;   // Ensure the upper 8 bits are 0s
+		data->sample &= 0x00FFFFFF; // Ensure the upper 8 bits are 0s
 	}
 
 	return 0;
 }
 
-static int nau7802_loadcell_channel_get(const struct device *dev,
-				enum sensor_channel chan,
-				struct sensor_value *val)
+static int nau7802_loadcell_channel_get(const struct device *dev, enum sensor_channel chan,
+					struct sensor_value *val)
 {
 	struct nau7802_loadcell_data *data = dev->data;
 	float uval;
@@ -448,7 +404,7 @@ static int nau7802_loadcell_channel_get(const struct device *dev,
 		return -ENOTSUP;
 	}
 
-    /* convert the ADC value to force value */
+	/* convert the ADC value to force value */
 	uval = (float32_t)(data->sample) * data->calibration_factor + data->zero_offset;
 	sensor_value_from_float(val, uval);
 
@@ -468,7 +424,7 @@ static const struct sensor_driver_api nau7802_loadcell_api = {
 /* Init function*/
 static int nau7802_loadcell_init(const struct device *dev)
 {
-    const struct nau7802_loadcell_config * const config = dev->config;
+	const struct nau7802_loadcell_config *const config = dev->config;
 	struct nau7802_loadcell_data *data = dev->data;
 	int ret;
 
@@ -480,7 +436,7 @@ static int nau7802_loadcell_init(const struct device *dev)
 
 	/* Reset the IC*/
 	ret = nau7802_reset(config);
-	if(ret != 0){
+	if (ret != 0) {
 		LOG_ERR("ret:%d, Reset process failed", ret);
 		return ret;
 	}
@@ -488,7 +444,7 @@ static int nau7802_loadcell_init(const struct device *dev)
 
 	/* Power on the IC*/
 	ret = nau7802_enable(config, true);
-	if(ret != 0){
+	if (ret != 0) {
 		LOG_ERR("ret:%d, Enable process failed", ret);
 		return ret;
 	}
@@ -499,15 +455,15 @@ static int nau7802_loadcell_init(const struct device *dev)
 
 	/* Set the LDO*/
 	ret = nau7802_setLDO(config, NAU7802_3V0);
-	if(ret != 0){
+	if (ret != 0) {
 		LOG_ERR("ret:%d, SetLDO process failed", ret);
 		return ret;
 	}
 	LOG_DBG("ret:%d, Set LDO done", ret);
 
-	/* Configure the PGA gain*/	
+	/* Configure the PGA gain*/
 	ret = nau7802_setGain(config);
-	if(ret != 0){
+	if (ret != 0) {
 		LOG_ERR("ret:%d, SetGain process failed", ret);
 		return ret;
 	}
@@ -515,7 +471,7 @@ static int nau7802_loadcell_init(const struct device *dev)
 
 	/* Configure the output data rate*/
 	ret = nau7802_setRate(config);
-	if(ret != 0){
+	if (ret != 0) {
 		LOG_ERR("ret:%d, SetRate process failed", ret);
 		return ret;
 	}
@@ -523,30 +479,24 @@ static int nau7802_loadcell_init(const struct device *dev)
 
 	/* Disable ADC chopper clock*/
 	/* Set the bit 4 and bit 5 of ADC register*/
-	ret = i2c_reg_update_byte_dt(&config->bus, 
-								NAU7802_ADC, 
-								NAU7802_MASK_ADC_REG_CHPS, 
-								(0b11 << NAU7802_SHIFT_ADC_REG_CHPS));
-	if(ret != 0){
+	ret = i2c_reg_update_byte_dt(&config->bus, NAU7802_ADC, NAU7802_MASK_ADC_REG_CHPS,
+				     (0b11 << NAU7802_SHIFT_ADC_REG_CHPS));
+	if (ret != 0) {
 		LOG_ERR("ret:%d, Disabling chopper clock failed", ret);
 		return ret;
 	}
 	/* Use low ESR caps*/
-	ret = i2c_reg_update_byte_dt(&config->bus, 
-								NAU7802_PGA, 
-								NAU7802_MASK_PGA_LDOMODE, 
-								(0 << NAU7802_SHIFT_PGA_LDOMODE));
-	if(ret != 0){
+	ret = i2c_reg_update_byte_dt(&config->bus, NAU7802_PGA, NAU7802_MASK_PGA_LDOMODE,
+				     (0 << NAU7802_SHIFT_PGA_LDOMODE));
+	if (ret != 0) {
 		LOG_ERR("ret:%d, Setting low ESR failed", ret);
 		return ret;
 	}
 
 	/* PGA stabilizer cap on output*/
-	ret = i2c_reg_update_byte_dt(&config->bus, 
-								NAU7802_POWER, 
-								NAU7802_MASK_POWER_PGA_CAP_EN, 
-								(1 << NAU7802_SHIFT_POWER_PGA_CAP_EN));
-	if(ret != 0){
+	ret = i2c_reg_update_byte_dt(&config->bus, NAU7802_POWER, NAU7802_MASK_POWER_PGA_CAP_EN,
+				     (1 << NAU7802_SHIFT_POWER_PGA_CAP_EN));
+	if (ret != 0) {
 		LOG_ERR("ret:%d, Enabling PGA cap failed", ret);
 		return ret;
 	}
@@ -558,21 +508,20 @@ static int nau7802_loadcell_init(const struct device *dev)
 
 	/* Conduct internal calibration*/
 	ret = nau7802_IntCalibration(config, NAU7802_CALMOD_OFFSET);
-	if(ret != 0)
-	{
+	if (ret != 0) {
 		LOG_ERR("ret:%d, Internal Calibration failed", ret);
 		return ret;
 	}
 
 #ifdef CONFIG_NAU7802_LOADCELL_TRIGGER
 	ret = nau7802_loadcell_init_interrupt(dev);
-	if(ret != 0){
+	if (ret != 0) {
 		LOG_ERR("ret:%d, Interrupt init process fail", ret);
 		return ret;
 	}
 
 #endif
-	
+
 	/* success*/
 	LOG_DBG("Chip init done.");
 	return 0;
@@ -580,28 +529,21 @@ static int nau7802_loadcell_init(const struct device *dev)
 
 /* Macro function to selectively include the drdy gpio pin*/
 #if defined(CONFIG_NAU7802_LOADCELL_TRIGGER)
-#define NAU7802_LOADCELL_INT_CFG(inst) \
-	.drdy_gpios = GPIO_DT_SPEC_INST_GET(inst, drdy_gpios),
+#define NAU7802_LOADCELL_INT_CFG(inst) .drdy_gpios = GPIO_DT_SPEC_INST_GET(inst, drdy_gpios),
 #else
 #define NAU7802_LOADCELL_INT_CFG(inst)
 #endif
 
 /* Use the Instance-based APIs*/
-#define CREATE_NAU7802_LOADCELL_INST(inst)								 			  \
-	static struct nau7802_loadcell_data nau7802_loadcell_data_##inst;				  \
-	static const struct nau7802_loadcell_config nau7802_loadcell_config_##inst = {	  \
-		NAU7802_LOADCELL_INT_CFG(inst)						   						  \
-		.bus = I2C_DT_SPEC_INST_GET(inst),					   						  \
-		.conversions_per_second_idx = DT_INST_ENUM_IDX(inst, conversions_per_second), \
-		.gain_idx = DT_INST_ENUM_IDX(inst, gain)									  \
-	};										  										  \
-	SENSOR_DEVICE_DT_INST_DEFINE(	 		  										  \
-		inst, nau7802_loadcell_init, 		  										  \
-		NULL,						 		  										  \
-		&nau7802_loadcell_data_##inst,	      										  \
-		&nau7802_loadcell_config_##inst, 	  										  \
-		POST_KERNEL,			   			  										  \
-		CONFIG_SENSOR_INIT_PRIORITY, 		  										  \
-		&nau7802_loadcell_api);
+#define CREATE_NAU7802_LOADCELL_INST(inst)                                                         \
+	static struct nau7802_loadcell_data nau7802_loadcell_data_##inst;                          \
+	static const struct nau7802_loadcell_config nau7802_loadcell_config_##inst = {             \
+		NAU7802_LOADCELL_INT_CFG(inst).bus = I2C_DT_SPEC_INST_GET(inst),                   \
+		.conversions_per_second_idx = DT_INST_ENUM_IDX(inst, conversions_per_second),      \
+		.gain_idx = DT_INST_ENUM_IDX(inst, gain)};                                         \
+	SENSOR_DEVICE_DT_INST_DEFINE(inst, nau7802_loadcell_init, NULL,                            \
+				     &nau7802_loadcell_data_##inst,                                \
+				     &nau7802_loadcell_config_##inst, POST_KERNEL,                 \
+				     CONFIG_SENSOR_INIT_PRIORITY, &nau7802_loadcell_api);
 
 DT_INST_FOREACH_STATUS_OKAY(CREATE_NAU7802_LOADCELL_INST)
