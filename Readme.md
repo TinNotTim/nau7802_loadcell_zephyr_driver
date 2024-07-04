@@ -26,7 +26,7 @@ manifest:
     - name: NAU7802_LOADCELL
       path: modules/nau7802_loadcell
       revision: refs/tags/zephyr-v3.7.0
-      url: https://github.com/nobodyguy/nau7802_loadcell_zephyr_driver
+      url: https://github.com/TinNotTim/nau7802_loadcell_zephyr_driver
 ```
 
 This will import the driver and allow you to use it in your code.
