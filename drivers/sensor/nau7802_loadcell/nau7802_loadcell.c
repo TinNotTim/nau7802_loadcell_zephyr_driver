@@ -253,8 +253,8 @@ static int nau7802_setOffset(const struct device *nau7802, const struct sensor_v
 		return -ENOTSUP;
 	}
 
-	/* Reconstruct the input value to float*/
-	memcpy(&data->zero_offset, &offset->val1, sizeof(float32_t));
+	/* Convert sensor_value to double */
+	data->zero_offset = sensor_value_to_double(offset);
 
 	/* success*/
 	return 0;
@@ -280,8 +280,8 @@ static int nau7802_setCalibration(const struct device *nau7802,
 		return -ENOTSUP;
 	}
 
-	/* Reconstruct the input value to float*/
-	memcpy(&data->calibration_factor, &calibrationFactor->val1, sizeof(float32_t));
+	/* Convert sensor_value to double */
+	data->calibration_factor = sensor_value_to_double(calibrationFactor);
 
 	/* success*/
 	return 0;
@@ -323,7 +323,7 @@ static int nau7802_IntCalibration(const struct nau7802_loadcell_config *config,
 	/* Poll the CALS bit until it became 0*/
 	uint8_t ctrl2_val;
 	ret = i2c_reg_read_byte_dt(&config->bus, NAU7802_CTRL2, &ctrl2_val);
-	while ((ctrl2_val & NAU7802_MASK_CTRL2_CALS != 0) && (ret == 0)) {
+	while (((ctrl2_val & NAU7802_MASK_CTRL2_CALS) != 0) && (ret == 0)) {
 		k_sleep(K_MSEC(10));
 		ret = i2c_reg_read_byte_dt(&config->bus, NAU7802_CTRL2, &ctrl2_val);
 	}
@@ -334,7 +334,7 @@ static int nau7802_IntCalibration(const struct nau7802_loadcell_config *config,
 	LOG_DBG("Internal Calibration done");
 
 	/* Check the CAL_ERR bit in CTRL2 to see if the calibration is successful*/
-	if (ctrl2_val & NAU7802_MASK_CTRL2_CAL_ERR != 0) {
+	if ((ctrl2_val & NAU7802_MASK_CTRL2_CAL_ERR) != 0) {
 		LOG_ERR("Calibration failed.");
 		return -EIO;
 	}
@@ -368,6 +368,11 @@ static int nau7802_loadcell_sample_fetch(const struct device *dev, enum sensor_c
 {
 	struct nau7802_loadcell_data *data = dev->data;
 	const struct nau7802_loadcell_config *config = dev->config;
+
+	if (!data->device_ready) {
+		return -EBUSY;
+	}
+
 	uint8_t out[3];
 
 	if (chan == SENSOR_CHAN_ALL) {
@@ -398,15 +403,18 @@ static int nau7802_loadcell_channel_get(const struct device *dev, enum sensor_ch
 					struct sensor_value *val)
 {
 	struct nau7802_loadcell_data *data = dev->data;
-	float uval;
+
+	if (!data->device_ready) {
+		return -EBUSY;
+	}
 
 	if ((enum sensor_channel_nuvoton_nau7802_loadcell)chan != SENSOR_CHAN_FORCE) {
 		return -ENOTSUP;
 	}
 
-	/* convert the ADC value to force value */
-	uval = (float32_t)(data->sample) * data->calibration_factor + data->zero_offset;
-	sensor_value_from_float(val, uval);
+	/* Convert ADC value to force */
+	double uval = (double)(data->sample) * data->calibration_factor + data->zero_offset;
+	sensor_value_from_double(val, uval);
 
 	return 0;
 }
@@ -421,24 +429,21 @@ static const struct sensor_driver_api nau7802_loadcell_api = {
 	.channel_get = nau7802_loadcell_channel_get,
 };
 
-/* Init function*/
-static int nau7802_loadcell_init(const struct device *dev)
+/* Deferred hw init runs outside the boot path */
+static void nau7802_init_work_handler(struct k_work *work)
 {
-	const struct nau7802_loadcell_config *const config = dev->config;
-	struct nau7802_loadcell_data *data = dev->data;
+	struct nau7802_loadcell_data *data = CONTAINER_OF(
+		k_work_delayable_from_work(work),
+		struct nau7802_loadcell_data, init_work);
+	const struct device *dev = data->dev;
+	const struct nau7802_loadcell_config *config = dev->config;
 	int ret;
-
-	/* Check if the i2c bus is ready*/
-	if (!device_is_ready(config->bus.bus)) {
-		LOG_ERR("ret:%d, I2C dev %s not ready", ret, config->bus.bus->name);
-		return -ENODEV;
-	}
 
 	/* Reset the IC*/
 	ret = nau7802_reset(config);
 	if (ret != 0) {
 		LOG_ERR("ret:%d, Reset process failed", ret);
-		return ret;
+		return;
 	}
 	LOG_DBG("ret:%d, finish reset", ret);
 
@@ -446,7 +451,7 @@ static int nau7802_loadcell_init(const struct device *dev)
 	ret = nau7802_enable(config, true);
 	if (ret != 0) {
 		LOG_ERR("ret:%d, Enable process failed", ret);
-		return ret;
+		return;
 	}
 	LOG_DBG("ret:%d, Enable success", ret);
 
@@ -457,7 +462,7 @@ static int nau7802_loadcell_init(const struct device *dev)
 	ret = nau7802_setLDO(config, NAU7802_3V0);
 	if (ret != 0) {
 		LOG_ERR("ret:%d, SetLDO process failed", ret);
-		return ret;
+		return;
 	}
 	LOG_DBG("ret:%d, Set LDO done", ret);
 
@@ -465,7 +470,7 @@ static int nau7802_loadcell_init(const struct device *dev)
 	ret = nau7802_setGain(config);
 	if (ret != 0) {
 		LOG_ERR("ret:%d, SetGain process failed", ret);
-		return ret;
+		return;
 	}
 	LOG_DBG("ret:%d, Set gain done", ret);
 
@@ -473,7 +478,7 @@ static int nau7802_loadcell_init(const struct device *dev)
 	ret = nau7802_setRate(config);
 	if (ret != 0) {
 		LOG_ERR("ret:%d, SetRate process failed", ret);
-		return ret;
+		return;
 	}
 	LOG_DBG("ret:%d, Set rate done", ret);
 
@@ -483,14 +488,14 @@ static int nau7802_loadcell_init(const struct device *dev)
 				     (0b11 << NAU7802_SHIFT_ADC_REG_CHPS));
 	if (ret != 0) {
 		LOG_ERR("ret:%d, Disabling chopper clock failed", ret);
-		return ret;
+		return;
 	}
 	/* Use low ESR caps*/
 	ret = i2c_reg_update_byte_dt(&config->bus, NAU7802_PGA, NAU7802_MASK_PGA_LDOMODE,
 				     (0 << NAU7802_SHIFT_PGA_LDOMODE));
 	if (ret != 0) {
 		LOG_ERR("ret:%d, Setting low ESR failed", ret);
-		return ret;
+		return;
 	}
 
 	/* PGA stabilizer cap on output*/
@@ -498,7 +503,7 @@ static int nau7802_loadcell_init(const struct device *dev)
 				     (1 << NAU7802_SHIFT_POWER_PGA_CAP_EN));
 	if (ret != 0) {
 		LOG_ERR("ret:%d, Enabling PGA cap failed", ret);
-		return ret;
+		return;
 	}
 
 	/* initialize the offset value and calibration factor */
@@ -510,20 +515,39 @@ static int nau7802_loadcell_init(const struct device *dev)
 	ret = nau7802_IntCalibration(config, NAU7802_CALMOD_OFFSET);
 	if (ret != 0) {
 		LOG_ERR("ret:%d, Internal Calibration failed", ret);
-		return ret;
+		return;
 	}
 
 #ifdef CONFIG_NAU7802_LOADCELL_TRIGGER
 	ret = nau7802_loadcell_init_interrupt(dev);
 	if (ret != 0) {
 		LOG_ERR("ret:%d, Interrupt init process fail", ret);
-		return ret;
+		return;
 	}
 
 #endif
 
-	/* success*/
-	LOG_DBG("Chip init done.");
+	data->device_ready = true;
+	LOG_DBG("Chip init done");
+}
+
+/* Init function*/
+static int nau7802_loadcell_init(const struct device *dev)
+{
+	const struct nau7802_loadcell_config *const config = dev->config;
+	struct nau7802_loadcell_data *data = dev->data;
+
+	/* Check if the i2c bus is ready*/
+	if (!device_is_ready(config->bus.bus)) {
+		LOG_ERR("I2C dev %s not ready", config->bus.bus->name);
+		return -ENODEV;
+	}
+
+	data->dev = dev;
+	data->device_ready = false;
+	k_work_init_delayable(&data->init_work, nau7802_init_work_handler);
+	k_work_schedule(&data->init_work, K_NO_WAIT);
+
 	return 0;
 }
 
