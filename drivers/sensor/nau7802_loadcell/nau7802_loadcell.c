@@ -11,6 +11,8 @@
 LOG_MODULE_REGISTER(NAU7802_LOADCELL, LOG_LEVEL_DBG);
 // LOG_MODULE_REGISTER(NAU7802_LOADCELL, CONFIG_I2C_LOG_LEVEL);
 
+#if DT_NUM_INST_STATUS_OKAY(DT_DRV_COMPAT) > 0
+
 /**************************************************************************/
 /*!
     @brief Perform a soft reset
@@ -299,11 +301,6 @@ static int nau7802_IntCalibration(const struct nau7802_loadcell_config *config,
 {
 	int ret;
 
-	if (calibrationMode == NULL) {
-		LOG_ERR("Calibration mode couldn't be NULL");
-		return -ENOTSUP;
-	}
-
 	/* Write the calib mode to CTRL2 register*/
 	ret = i2c_reg_update_byte_dt(&config->bus, NAU7802_CTRL2, NAU7802_MASK_CTRL2_CALMOD,
 				     (calibrationMode << NAU7802_SHIFT_CTRL2_CALMOD));
@@ -571,3 +568,5 @@ static int nau7802_loadcell_init(const struct device *dev)
 				     CONFIG_SENSOR_INIT_PRIORITY, &nau7802_loadcell_api);
 
 DT_INST_FOREACH_STATUS_OKAY(CREATE_NAU7802_LOADCELL_INST)
+
+#endif /* DT_NUM_INST_STATUS_OKAY(DT_DRV_COMPAT) > 0 */
