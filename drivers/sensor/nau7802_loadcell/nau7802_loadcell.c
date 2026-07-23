@@ -5,6 +5,7 @@
  */
 #include <math.h>
 #include <stdio.h>
+#include <zephyr/pm/device.h>
 #include "nau7802_loadcell.h"
 
 /* Register the module to logging submodule*/
@@ -426,21 +427,17 @@ static const struct sensor_driver_api nau7802_loadcell_api = {
 	.channel_get = nau7802_loadcell_channel_get,
 };
 
-/* Deferred hw init runs outside the boot path */
-static void nau7802_init_work_handler(struct k_work *work)
+static int nau7802_hw_init(const struct device *dev)
 {
-	struct nau7802_loadcell_data *data = CONTAINER_OF(
-		k_work_delayable_from_work(work),
-		struct nau7802_loadcell_data, init_work);
-	const struct device *dev = data->dev;
 	const struct nau7802_loadcell_config *config = dev->config;
+	struct nau7802_loadcell_data *data = dev->data;
 	int ret;
 
 	/* Reset the IC*/
 	ret = nau7802_reset(config);
 	if (ret != 0) {
 		LOG_ERR("ret:%d, Reset process failed", ret);
-		return;
+		return ret;
 	}
 	LOG_DBG("ret:%d, finish reset", ret);
 
@@ -448,7 +445,7 @@ static void nau7802_init_work_handler(struct k_work *work)
 	ret = nau7802_enable(config, true);
 	if (ret != 0) {
 		LOG_ERR("ret:%d, Enable process failed", ret);
-		return;
+		return ret;
 	}
 	LOG_DBG("ret:%d, Enable success", ret);
 
@@ -459,7 +456,7 @@ static void nau7802_init_work_handler(struct k_work *work)
 	ret = nau7802_setLDO(config, NAU7802_3V0);
 	if (ret != 0) {
 		LOG_ERR("ret:%d, SetLDO process failed", ret);
-		return;
+		return ret;
 	}
 	LOG_DBG("ret:%d, Set LDO done", ret);
 
@@ -467,7 +464,7 @@ static void nau7802_init_work_handler(struct k_work *work)
 	ret = nau7802_setGain(config);
 	if (ret != 0) {
 		LOG_ERR("ret:%d, SetGain process failed", ret);
-		return;
+		return ret;
 	}
 	LOG_DBG("ret:%d, Set gain done", ret);
 
@@ -475,7 +472,7 @@ static void nau7802_init_work_handler(struct k_work *work)
 	ret = nau7802_setRate(config);
 	if (ret != 0) {
 		LOG_ERR("ret:%d, SetRate process failed", ret);
-		return;
+		return ret;
 	}
 	LOG_DBG("ret:%d, Set rate done", ret);
 
@@ -485,14 +482,14 @@ static void nau7802_init_work_handler(struct k_work *work)
 				     (0b11 << NAU7802_SHIFT_ADC_REG_CHPS));
 	if (ret != 0) {
 		LOG_ERR("ret:%d, Disabling chopper clock failed", ret);
-		return;
+		return ret;
 	}
 	/* Use low ESR caps*/
 	ret = i2c_reg_update_byte_dt(&config->bus, NAU7802_PGA, NAU7802_MASK_PGA_LDOMODE,
 				     (0 << NAU7802_SHIFT_PGA_LDOMODE));
 	if (ret != 0) {
 		LOG_ERR("ret:%d, Setting low ESR failed", ret);
-		return;
+		return ret;
 	}
 
 	/* PGA stabilizer cap on output*/
@@ -500,7 +497,7 @@ static void nau7802_init_work_handler(struct k_work *work)
 				     (1 << NAU7802_SHIFT_POWER_PGA_CAP_EN));
 	if (ret != 0) {
 		LOG_ERR("ret:%d, Enabling PGA cap failed", ret);
-		return;
+		return ret;
 	}
 
 	/* initialize the offset value and calibration factor */
@@ -512,20 +509,31 @@ static void nau7802_init_work_handler(struct k_work *work)
 	ret = nau7802_IntCalibration(config, NAU7802_CALMOD_OFFSET);
 	if (ret != 0) {
 		LOG_ERR("ret:%d, Internal Calibration failed", ret);
-		return;
+		return ret;
 	}
 
 #ifdef CONFIG_NAU7802_LOADCELL_TRIGGER
 	ret = nau7802_loadcell_init_interrupt(dev);
 	if (ret != 0) {
 		LOG_ERR("ret:%d, Interrupt init process fail", ret);
-		return;
+		return ret;
 	}
 
 #endif
 
 	data->device_ready = true;
 	LOG_DBG("Chip init done");
+	return 0;
+}
+
+/* Deferred hw init runs outside the boot path */
+static void nau7802_init_work_handler(struct k_work *work)
+{
+	struct nau7802_loadcell_data *data = CONTAINER_OF(
+		k_work_delayable_from_work(work),
+		struct nau7802_loadcell_data, init_work);
+	
+	nau7802_hw_init(data->dev);
 }
 
 /* Init function*/
@@ -555,6 +563,22 @@ static int nau7802_loadcell_init(const struct device *dev)
 #define NAU7802_LOADCELL_INT_CFG(inst)
 #endif
 
+#ifdef CONFIG_PM_DEVICE
+static int nau7802_pm_action(const struct device *dev, enum pm_device_action action)
+{
+	const struct nau7802_loadcell_config *config = dev->config;
+
+	switch (action) {
+	case PM_DEVICE_ACTION_RESUME:
+		return nau7802_hw_init(dev);
+	case PM_DEVICE_ACTION_SUSPEND:
+		return nau7802_enable(config, false);
+	default:
+		return -ENOTSUP;
+	}
+}
+#endif
+
 /* Use the Instance-based APIs*/
 #define CREATE_NAU7802_LOADCELL_INST(inst)                                                         \
 	static struct nau7802_loadcell_data nau7802_loadcell_data_##inst;                          \
@@ -562,7 +586,8 @@ static int nau7802_loadcell_init(const struct device *dev)
 		NAU7802_LOADCELL_INT_CFG(inst).bus = I2C_DT_SPEC_INST_GET(inst),                   \
 		.conversions_per_second_idx = DT_INST_ENUM_IDX(inst, conversions_per_second),      \
 		.gain_idx = DT_INST_ENUM_IDX(inst, gain)};                                         \
-	SENSOR_DEVICE_DT_INST_DEFINE(inst, nau7802_loadcell_init, NULL,                            \
+	PM_DEVICE_DT_INST_DEFINE(inst, nau7802_pm_action);                                         \
+	SENSOR_DEVICE_DT_INST_DEFINE(inst, nau7802_loadcell_init, PM_DEVICE_DT_INST_GET(inst),     \
 				     &nau7802_loadcell_data_##inst,                                \
 				     &nau7802_loadcell_config_##inst, POST_KERNEL,                 \
 				     CONFIG_SENSOR_INIT_PRIORITY, &nau7802_loadcell_api);
