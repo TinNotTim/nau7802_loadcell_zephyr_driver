@@ -5,11 +5,14 @@
  */
 #include <math.h>
 #include <stdio.h>
+#include <zephyr/pm/device.h>
 #include "nau7802_loadcell.h"
 
 /* Register the module to logging submodule*/
 LOG_MODULE_REGISTER(NAU7802_LOADCELL, LOG_LEVEL_DBG);
 // LOG_MODULE_REGISTER(NAU7802_LOADCELL, CONFIG_I2C_LOG_LEVEL);
+
+#if DT_NUM_INST_STATUS_OKAY(DT_DRV_COMPAT) > 0
 
 /**************************************************************************/
 /*!
@@ -253,8 +256,8 @@ static int nau7802_setOffset(const struct device *nau7802, const struct sensor_v
 		return -ENOTSUP;
 	}
 
-	/* Reconstruct the input value to float*/
-	memcpy(&data->zero_offset, &offset->val1, sizeof(float32_t));
+	/* Convert sensor_value to double */
+	data->zero_offset = sensor_value_to_double(offset);
 
 	/* success*/
 	return 0;
@@ -280,8 +283,8 @@ static int nau7802_setCalibration(const struct device *nau7802,
 		return -ENOTSUP;
 	}
 
-	/* Reconstruct the input value to float*/
-	memcpy(&data->calibration_factor, &calibrationFactor->val1, sizeof(float32_t));
+	/* Convert sensor_value to double */
+	data->calibration_factor = sensor_value_to_double(calibrationFactor);
 
 	/* success*/
 	return 0;
@@ -298,11 +301,6 @@ static int nau7802_IntCalibration(const struct nau7802_loadcell_config *config,
 				  NAU7802_Calibration calibrationMode)
 {
 	int ret;
-
-	if (calibrationMode == NULL) {
-		LOG_ERR("Calibration mode couldn't be NULL");
-		return -ENOTSUP;
-	}
 
 	/* Write the calib mode to CTRL2 register*/
 	ret = i2c_reg_update_byte_dt(&config->bus, NAU7802_CTRL2, NAU7802_MASK_CTRL2_CALMOD,
@@ -323,7 +321,7 @@ static int nau7802_IntCalibration(const struct nau7802_loadcell_config *config,
 	/* Poll the CALS bit until it became 0*/
 	uint8_t ctrl2_val;
 	ret = i2c_reg_read_byte_dt(&config->bus, NAU7802_CTRL2, &ctrl2_val);
-	while ((ctrl2_val & NAU7802_MASK_CTRL2_CALS != 0) && (ret == 0)) {
+	while (((ctrl2_val & NAU7802_MASK_CTRL2_CALS) != 0) && (ret == 0)) {
 		k_sleep(K_MSEC(10));
 		ret = i2c_reg_read_byte_dt(&config->bus, NAU7802_CTRL2, &ctrl2_val);
 	}
@@ -334,7 +332,7 @@ static int nau7802_IntCalibration(const struct nau7802_loadcell_config *config,
 	LOG_DBG("Internal Calibration done");
 
 	/* Check the CAL_ERR bit in CTRL2 to see if the calibration is successful*/
-	if (ctrl2_val & NAU7802_MASK_CTRL2_CAL_ERR != 0) {
+	if ((ctrl2_val & NAU7802_MASK_CTRL2_CAL_ERR) != 0) {
 		LOG_ERR("Calibration failed.");
 		return -EIO;
 	}
@@ -368,6 +366,11 @@ static int nau7802_loadcell_sample_fetch(const struct device *dev, enum sensor_c
 {
 	struct nau7802_loadcell_data *data = dev->data;
 	const struct nau7802_loadcell_config *config = dev->config;
+
+	if (!data->device_ready) {
+		return -EBUSY;
+	}
+
 	uint8_t out[3];
 
 	if (chan == SENSOR_CHAN_ALL) {
@@ -398,15 +401,18 @@ static int nau7802_loadcell_channel_get(const struct device *dev, enum sensor_ch
 					struct sensor_value *val)
 {
 	struct nau7802_loadcell_data *data = dev->data;
-	float uval;
+
+	if (!data->device_ready) {
+		return -EBUSY;
+	}
 
 	if ((enum sensor_channel_nuvoton_nau7802_loadcell)chan != SENSOR_CHAN_FORCE) {
 		return -ENOTSUP;
 	}
 
-	/* convert the ADC value to force value */
-	uval = (float32_t)(data->sample) * data->calibration_factor + data->zero_offset;
-	sensor_value_from_float(val, uval);
+	/* Convert ADC value to force */
+	double uval = (double)(data->sample) * data->calibration_factor + data->zero_offset;
+	sensor_value_from_double(val, uval);
 
 	return 0;
 }
@@ -421,18 +427,11 @@ static const struct sensor_driver_api nau7802_loadcell_api = {
 	.channel_get = nau7802_loadcell_channel_get,
 };
 
-/* Init function*/
-static int nau7802_loadcell_init(const struct device *dev)
+static int nau7802_hw_init(const struct device *dev)
 {
-	const struct nau7802_loadcell_config *const config = dev->config;
+	const struct nau7802_loadcell_config *config = dev->config;
 	struct nau7802_loadcell_data *data = dev->data;
 	int ret;
-
-	/* Check if the i2c bus is ready*/
-	if (!device_is_ready(config->bus.bus)) {
-		LOG_ERR("ret:%d, I2C dev %s not ready", ret, config->bus.bus->name);
-		return -ENODEV;
-	}
 
 	/* Reset the IC*/
 	ret = nau7802_reset(config);
@@ -522,8 +521,38 @@ static int nau7802_loadcell_init(const struct device *dev)
 
 #endif
 
-	/* success*/
-	LOG_DBG("Chip init done.");
+	data->device_ready = true;
+	LOG_DBG("Chip init done");
+	return 0;
+}
+
+/* Deferred hw init runs outside the boot path */
+static void nau7802_init_work_handler(struct k_work *work)
+{
+	struct nau7802_loadcell_data *data = CONTAINER_OF(
+		k_work_delayable_from_work(work),
+		struct nau7802_loadcell_data, init_work);
+	
+	nau7802_hw_init(data->dev);
+}
+
+/* Init function*/
+static int nau7802_loadcell_init(const struct device *dev)
+{
+	const struct nau7802_loadcell_config *const config = dev->config;
+	struct nau7802_loadcell_data *data = dev->data;
+
+	/* Check if the i2c bus is ready*/
+	if (!device_is_ready(config->bus.bus)) {
+		LOG_ERR("I2C dev %s not ready", config->bus.bus->name);
+		return -ENODEV;
+	}
+
+	data->dev = dev;
+	data->device_ready = false;
+	k_work_init_delayable(&data->init_work, nau7802_init_work_handler);
+	k_work_schedule(&data->init_work, K_NO_WAIT);
+
 	return 0;
 }
 
@@ -534,6 +563,22 @@ static int nau7802_loadcell_init(const struct device *dev)
 #define NAU7802_LOADCELL_INT_CFG(inst)
 #endif
 
+#ifdef CONFIG_PM_DEVICE
+static int nau7802_pm_action(const struct device *dev, enum pm_device_action action)
+{
+	const struct nau7802_loadcell_config *config = dev->config;
+
+	switch (action) {
+	case PM_DEVICE_ACTION_RESUME:
+		return nau7802_hw_init(dev);
+	case PM_DEVICE_ACTION_SUSPEND:
+		return nau7802_enable(config, false);
+	default:
+		return -ENOTSUP;
+	}
+}
+#endif
+
 /* Use the Instance-based APIs*/
 #define CREATE_NAU7802_LOADCELL_INST(inst)                                                         \
 	static struct nau7802_loadcell_data nau7802_loadcell_data_##inst;                          \
@@ -541,9 +586,12 @@ static int nau7802_loadcell_init(const struct device *dev)
 		NAU7802_LOADCELL_INT_CFG(inst).bus = I2C_DT_SPEC_INST_GET(inst),                   \
 		.conversions_per_second_idx = DT_INST_ENUM_IDX(inst, conversions_per_second),      \
 		.gain_idx = DT_INST_ENUM_IDX(inst, gain)};                                         \
-	SENSOR_DEVICE_DT_INST_DEFINE(inst, nau7802_loadcell_init, NULL,                            \
+	PM_DEVICE_DT_INST_DEFINE(inst, nau7802_pm_action);                                         \
+	SENSOR_DEVICE_DT_INST_DEFINE(inst, nau7802_loadcell_init, PM_DEVICE_DT_INST_GET(inst),     \
 				     &nau7802_loadcell_data_##inst,                                \
 				     &nau7802_loadcell_config_##inst, POST_KERNEL,                 \
 				     CONFIG_SENSOR_INIT_PRIORITY, &nau7802_loadcell_api);
 
 DT_INST_FOREACH_STATUS_OKAY(CREATE_NAU7802_LOADCELL_INST)
+
+#endif /* DT_NUM_INST_STATUS_OKAY(DT_DRV_COMPAT) > 0 */

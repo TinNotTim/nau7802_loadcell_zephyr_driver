@@ -142,9 +142,12 @@ enum sensor_channel_nuvoton_nau7802_loadcell {
 /* Define data (RAM) and configuration (ROM) structures: */
 struct nau7802_loadcell_data {
 	/* per-device values to store in RAM */
-	float32_t zero_offset;
-	float32_t calibration_factor;
+	double zero_offset;
+	double calibration_factor;
 	int32_t sample;
+	const struct device *dev;
+	struct k_work_delayable init_work;
+	bool device_ready;
 
 #ifdef CONFIG_NAU7802_LOADCELL_TRIGGER
 	struct gpio_callback gpio_cb;
@@ -160,10 +163,6 @@ struct nau7802_loadcell_data {
 #endif /* CONFIG_NAU7802_LOADCELL_TRIGGER_MODE */
 #endif /* CONFIG_NAU7802_LOADCELL_TRIGGER */
 
-#if defined(CONFIG_NAU7802_LOADCELL_TRIGGER_GLOBAL_THREAD) ||                                      \
-	defined(CONFIG_NAU7802_LOADCELL_TRIGGER_DIRECT)
-	const struct device *dev;
-#endif
 };
 struct nau7802_loadcell_config {
 	/* other configuration to store in ROM */
